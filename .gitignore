@@ -36,3 +36,7 @@ logs/
 # OS files
 .DS_Store
 Thumbs.db
+
+# Local docs and ad-hoc tests
+codigo_la.txt
+teste_*.py
