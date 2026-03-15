@@ -5,7 +5,7 @@ import zipfile
 from datetime import datetime
 from pathlib import Path
 
-from config.settings import CSV_ENTRADA, TEMP_DIR
+from config.settings import CSV_ENTRADA, ENTRADA_DIR, TEMP_DIR
 from modules.utils.loader_processos import carregar_processos
 
 
@@ -150,7 +150,9 @@ def limpar_temporarios():
 def obter_processos():
 
     log("Carregando lista de processos...")
-    processos = carregar_processos(CSV_ENTRADA)
+    caminho_csv = resolver_csv_entrada()
+    log(f"CSV de entrada selecionado: {caminho_csv}")
+    processos = carregar_processos(caminho_csv)
 
     limite = os.getenv("AGIL_MAX_PROCESSOS", "").strip()
     if limite:
@@ -160,6 +162,38 @@ def obter_processos():
         log(f"{len(processos)} processos carregados.")
 
     return processos
+
+
+def resolver_csv_entrada():
+
+    # Permite forcar o arquivo de entrada sem alterar codigo.
+    csv_env = os.getenv("AGIL_CSV_ENTRADA", "").strip()
+    if csv_env:
+        caminho_env = Path(csv_env)
+        if caminho_env.exists():
+            return caminho_env
+        raise FileNotFoundError(
+            f"Arquivo definido em AGIL_CSV_ENTRADA nao encontrado: {caminho_env}"
+        )
+
+    # Prioriza CSVs da pasta data/entrada, escolhendo o mais recente.
+    candidatos_entrada = sorted(
+        ENTRADA_DIR.glob("*.csv"),
+        key=lambda caminho: caminho.stat().st_mtime,
+        reverse=True,
+    )
+    if candidatos_entrada:
+        return candidatos_entrada[0]
+
+    # Fallback para compatibilidade com execucoes antigas.
+    if Path(CSV_ENTRADA).exists():
+        return Path(CSV_ENTRADA)
+
+    raise FileNotFoundError(
+        "Nenhum CSV de entrada encontrado. "
+        f"Adicione um arquivo .csv em {ENTRADA_DIR} "
+        "ou configure AGIL_CSV_ENTRADA."
+    )
 
 
 def extrair_zip_seguro(caminho_zip: Path):

@@ -18,6 +18,7 @@ from config.settings import (
 from pathlib import Path
 import time
 import re
+import os
 from urllib.request import Request, urlopen
 from urllib.parse import unquote
 from urllib.parse import urljoin
@@ -27,6 +28,11 @@ class ScraperSEI:
 
     def __init__(self, headless: bool = False):
         self.headless = headless
+        # Timeouts especificos por documento para evitar travas longas em itens da arvore.
+        self.doc_timeout_click = int(os.getenv("AGIL_DOC_TIMEOUT_CLICK", "8"))
+        self.doc_timeout_visual = int(os.getenv("AGIL_DOC_TIMEOUT_VISUAL", "6"))
+        self.doc_timeout_conteudo = int(os.getenv("AGIL_DOC_TIMEOUT_CONTEUDO", "4"))
+        self.doc_tentativas = int(os.getenv("AGIL_DOC_TENTATIVAS", "2"))
         self.driver = self._iniciar_driver()
 
     # --------------------------------------------------
@@ -373,7 +379,7 @@ class ScraperSEI:
 
     # --------------------------------------------------
 
-    def _aguardar_visualizacao_atualizar(self, src_anterior):
+    def _aguardar_visualizacao_atualizar(self, src_anterior, timeout=None):
 
         def _mudou_src(driver):
             try:
@@ -383,7 +389,8 @@ class ScraperSEI:
             except Exception:
                 return False
 
-        WebDriverWait(self.driver, TIMEOUT_PADRAO).until(_mudou_src)
+        espera = timeout if timeout is not None else TIMEOUT_PADRAO
+        WebDriverWait(self.driver, espera).until(_mudou_src)
 
     # --------------------------------------------------
 
@@ -513,7 +520,7 @@ class ScraperSEI:
 
         ultima_excecao = None
 
-        for tentativa in range(3):
+        for tentativa in range(max(1, self.doc_tentativas)):
             try:
 
                 src_visualizacao_anterior = (
@@ -522,11 +529,11 @@ class ScraperSEI:
                 )
 
                 self.driver.switch_to.default_content()
-                WebDriverWait(self.driver, TIMEOUT_PADRAO).until(
+                WebDriverWait(self.driver, self.doc_timeout_click).until(
                     EC.frame_to_be_available_and_switch_to_it((By.ID, "ifrArvore"))
                 )
 
-                wait = WebDriverWait(self.driver, TIMEOUT_PADRAO)
+                wait = WebDriverWait(self.driver, self.doc_timeout_click)
                 elemento = None
 
                 href_bruto = metadata.get("href_bruto", "").strip()
@@ -583,7 +590,10 @@ class ScraperSEI:
 
                 self.driver.switch_to.default_content()
                 try:
-                    self._aguardar_visualizacao_atualizar(src_visualizacao_anterior)
+                    self._aguardar_visualizacao_atualizar(
+                        src_visualizacao_anterior,
+                        timeout=self.doc_timeout_visual,
+                    )
                 except TimeoutException:
                     # Em alguns casos o SEI mantém o mesmo src e só atualiza conteúdo interno.
                     pass
@@ -591,7 +601,7 @@ class ScraperSEI:
                 # O documento real fica no iframe de visualização.
                 self.driver.switch_to.frame("ifrVisualizacao")
                 try:
-                    wait_vis = WebDriverWait(self.driver, max(5, TIMEOUT_PADRAO // 2))
+                    wait_vis = WebDriverWait(self.driver, max(2, self.doc_timeout_conteudo))
                     wait_vis.until(
                         lambda driver: (
                             driver.find_elements(By.XPATH, "//iframe[@id='ifrArvoreHtml' and @src]")
