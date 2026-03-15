@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+
+# Virtual env
+.venv/
+venv/
+
+# IDE/editor
+.vscode/
+.idea/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Local runtime data
+data/temporarios/
+data/EIA/
+data/dataset_candidatos/
+data/base_classificada.csv
+data/checkpoint_execucao.json
+data/processos_documentos.csv
+data/*.csv
+
+# Local input data
+sislic-licencas.csv
+
+# Heavy training artifacts
+models/DADOS_TREINAMENTO/
+models/dataset_eia_vs_outro.csv
+
+# Logs
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db

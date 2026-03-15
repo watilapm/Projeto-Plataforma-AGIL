@@ -1,0 +1,5043 @@
+# SE O SERVIDOR NAO ESTIVER RESPONDENDO, deve editar variavel de ambiente
+# .. verificar se esstah na 0.0.0.0 com comando na maquina 69
+# netstat -an | find "11434"
+# VARIAVEL DE AMBIENTE EH
+# OLLAMA_HOST=0.0.0.0:11434
+
+import pyautogui
+
+from datetime import date, datetime #transformar texto em data
+
+from SEI_2_LLM_mq_10_10_11_20 import extrairAssunto_LLM, extrair_DESCRICAO_LLM
+
+inicio=datetime.today()
+
+#import PyPDF2
+from PyPDF2 import PdfReader
+
+import os
+from os.path import isfile, join, isdir, getsize, getmtime, expanduser, abspath # verificar se eh arquivo, juntar, pegar tamanho, tempo, nome do arquivo abstrato (pasta) para para diretorio
+from os import listdir, rename, sep, system, makedirs,remove,chdir
+import re # regex para operar com strings
+
+
+listaPotenciaisAssuntos = ['simulado', 'emergencia', 'auditoria', 'água produzida', 'socioeconomia', '306', '398','coral sol', 'coral-sol', 'pcp', '430', 'anuência', 'anuencia', 'pmic', 'pmp', 'acesso a informação', '12.527']
+
+enderecoSEI = 'https://sei.ibama.gov.br/sip/login.php?sigla_orgao_sistema=IBAMA&sigla_sistema=SEI'
+
+pastaGravarScrappings = 'C:/Users/Administrador/OneDrive - ibama.gov.br/Documentos/python/python_IBAMA_coprod_sei_demandas'
+pastafinal = 'C:/Users/Administrador/OneDrive - ibama.gov.br/Documentos/python/python_IBAMA_coprod_sei_demandas/monitorar'
+pastaDocumentosPorProcesso = 'C:/Users/Administrador/OneDrive - ibama.gov.br/Documentos/python/python_IBAMA_coprod_sei_demandas/monitorar/processosDocumentos'
+pastaDocumentosPorProcessoFiltro = 'C:/Users/Administrador/OneDrive - ibama.gov.br/Documentos/python/python_IBAMA_coprod_sei_demandas/monitorar/recibos'
+
+pastaDocumentosPorProcessoIncremental = 'C:/Users/Administrador/OneDrive - ibama.gov.br/Documentos/python/python_IBAMA_coprod_sei_demandas/monitorar/processosDocumentosIncremental'
+pastaDocumentosPorProcessoFiltroIncremental = 'C:/Users/Administrador/OneDrive - ibama.gov.br/Documentos/python/python_IBAMA_coprod_sei_demandas/monitorar/recibosIncremental'
+
+pastaDocumentosPorProcessoUnificados = 'C:/Users/Administrador/OneDrive - ibama.gov.br/Documentos/python/python_IBAMA_coprod_sei_demandas/monitorar/processosDocumentosUnificados'
+pastaDocumentosPorProcessoFiltroUnificados = 'C:/Users/Administrador/OneDrive - ibama.gov.br/Documentos/python/python_IBAMA_coprod_sei_demandas/monitorar/recibosUnificados'
+
+pastaDownloadsDOCparaNome ='C:/Users/Administrador/OneDrive - ibama.gov.br/Documentos/python/python_IBAMA_coprod_sei_demandas/downloadsGeral'
+
+#pastaToken = 'C:/Users/Administrador/OneDrive - ibama.gov.br/Documentos/python/python_IBAMA_coprod_sei_demandas/baixados'
+#arquivoToken = 'C:/Users/Administrador/OneDrive - ibama.gov.br/Documentos/python/pythonPAMGIA/token_cacheCENIMA.bin'
+
+pastaToken='C:/Users/Administrador/token_cache.bin'
+
+pastaTarefasCriadas = 'C:/Users/Administrador/OneDrive - ibama.gov.br/Documentos/python/python_IBAMA_coprod_sei_demandas/monitorar/tarefasCriadas'
+
+#PLANNER
+buketID_ObiDistribuir ='jsaKOgOIeUWUsIqShzYuTWQAEeWc'
+plannerDaCoprod = "oQrd_AwA2kaCEDy102oXLmQAChpY"
+
+idPatricia = '49e6a7f4-291f-4f52-9c7e-a78180cf7b07'
+#idPatricia = '655d0b54-eabc-48d6-8f81-d0ad620edae4' #LUIZ
+
+listaRotulos=[
+    'Bacia de Santos',
+    'BW',
+    ' PEVO ',
+    'Bacia de Campos',
+    ' Rota ',
+    'PDI',
+    'Socio',
+    'PMP',
+    'Trident',
+    'Perenco',
+    'Enauta',
+    'SEAL',
+    'Karoon',
+    'Petrorio',
+    'Equinor',
+    ' 3R ',
+    'Petrobras',
+    ' RNCE ',
+    'Projetos Continuados',
+    'Shell',
+    'Anuências',
+    ' ABIO ',
+    ' TotalEnergies ',
+    'Ministério Público',
+    'PPCEX'
+]
+
+from bs4 import BeautifulSoup #buscar dentro de TAGs
+
+from cryptography.fernet import Fernet
+
+def pp():
+    with open("C:/Users/Administrador/OneDrive - ibama.gov.br/Documentos/python/python_IBAMA_crip/chave.key", "rb") as f:
+        chave = f.read()
+
+    with open("C:/Users/Administrador/OneDrive - ibama.gov.br/Documentos/python/python_IBAMA_crip/senha.enc", "rb") as f:
+        senha_criptografada = f.read()
+
+    fernet = Fernet(chave)
+    palavra = fernet.decrypt(senha_criptografada).decode()
+   
+    return palavra
+
+# tempo de espera
+import time
+
+
+
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+
+from selenium.webdriver.common.action_chains import ActionChains
+
+# RESOLVER PROBLEMAS DE VERSAO (TODA HORA AUMENTA A VERSAO, TENDO QUE BAIXAR NOVO WEBDRIVER, tentar fixar uma versao antiga)
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
+
+
+#CLICAR IMAGEM
+from pyautogui import moveTo, click
+import pyautogui
+
+# TRABALHAR COM DADOS
+import pandas as pd
+# Aumentando o limite do campo para um valor maior, por exemplo, 1000000 - erro quando o campo ultrapassa 131072
+pd.options.display.max_colwidth = 100000000000
+import csv
+
+#import sys
+#csv.field_size_limit(sys.maxsize)
+
+import warnings
+
+# Desativa todos os avisos
+warnings.filterwarnings("ignore")
+
+
+from tqdm import tqdm
+tqdm.pandas(desc='Executando funcao Pandas')
+
+
+
+# editar opcoes para excluir erros de "USB: usb_device_handle_win" ,  Bluetooth availability e
+options2 = webdriver.ChromeOptions()
+options2.add_experimental_option('excludeSwitches', ['enable-logging'])
+
+#prefs = {"download.default_directory" : 'C:\\Users\\Ibama\\Python\\pythonSR_webscraping\\arquivosProcesso',"directory_upgrade": "true", "extensions_to_open": ""}
+#prefs = {"download.default_directory" : 'C:\\Users\\laoc8\\Downloads\\TCC_USP_LUIZ\\dadosBrutos\\IBAMA_MONIT_SATELITE',"directory_upgrade": "true", "extensions_to_open": ""}
+#prefs = {"download.default_directory" : 'C:\\Users\\Administrador\\OneDrive - ibama.gov.br\\Documentos\\python\\python_IBAMA_coprod_sei_demandas\\downloadsGeral',"directory_upgrade": "true", "extensions_to_open": ""}
+prefs = {"download.default_directory" : 'C:\\Users\\Administrador\\OneDrive - ibama.gov.br\\Documentos\\python\\python_IBAMA_coprod_sei_demandas\\downloadsGeral',"directory_upgrade": "true", "extensions_to_open": ""}
+options2.add_experimental_option("prefs",prefs)
+
+
+
+options2.add_argument("start-maximized")
+#options2.binary_location = "C:/Program Files/Google/Chrome/Application/chrome.exe"
+#options2.binary_location = "C:/Users/Administrador/OneDrive - ibama.gov.br/Documentos/python/python_IBAMA_coprod_sei_demandas/downloadsGeral/chrome-win64/chrome-win64/chrome.exe"
+options2.binary_location = "C:/Users/Administrador/OneDrive - ibama.gov.br/Documentos/python/python_IBAMA_coprod_sei_demandas/downloadsGeral/chrome-win64/chrome-win64/chrome.exe"
+#options2.binary_location = "C:/Program Files (x86)/Google/Chrome/Application/chrome.exe"
+
+# CASO FIQUE DESATUALIZADO o navegador, baixar outro driver no site https://chromedriver.chromium.org/downloads
+#driver = webdriver.Chrome(executable_path=r'C:/Users/Ibama/Python/pythonSR_webscraping/chromedriver.exe',options=options2 )
+
+
+# FUNCIONAVA
+#driver = webdriver.Chrome(executable_path=r'C:/Users/laoc8/AppsIonic/Python/AA-pythonVariados/chromedriver.exe',options=options2 )
+#driver = webdriver.Chrome(executable_path=r'C:/Users/Administrador/OneDrive - ibama.gov.br/Documentos/python/python_IBAMA_coprod_sei_demandas/downloadsGeral/chromedriver.exe',options=options2 )
+#driver = webdriver.Chrome(executable_path=r'C:/Users/Administrador/OneDrive - ibama.gov.br/Documentos/python/python_IBAMA_coprod_sei_demandas/downloadsGeral/chromedriver.exe',options=options2 )
+
+
+
+def pegarTodosOsProcessosNaCOPRODMenosVermelho(driver):
+    #driver
+
+    #ULTIMO chkInfraItem3814
+    html = driver.execute_script("return document.body.outerHTML;")
+    #print(html)
+    soup = BeautifulSoup(html,'lxml')
+
+    #checkedBRUTO = [i['id'] for i in soup.find_all('input', id=True)]
+    #print(checkedBRUTO)
+
+    # Encontrar todos os elementos <a> com a classe "processoVisualizado"
+    #elementos_a = soup.find_all('a', class_='processoVisualizado')
+    # Imprimir os elementos encontrados
+    #for elemento in elementos_a:
+    #    print(elemento)
+
+    # Extrair dados da tabela
+    dados_tabela = []
+
+    listaProcessos=[]
+    listaResponsaveis=[]
+    listarotulo=[]
+    listaTitulo=[]
+
+    for linha in soup.find_all('tr'):
+        dados_linha = []
+        vai=False
+        for celula in linha.find_all('td'):
+           
+            classes=''
+            tooltip_content=''
+            tooltip_content2=''
+            #a_tag=''
+            a_tag = celula.find('a')
+            if a_tag:
+                texto = a_tag.get_text(strip=True)
+                classes = a_tag.get('class', [])
+                #print(classes)
+                if 'processoVisualizado' in classes:
+                    vai=True
+                    # Extrair o conteúdo da função infraTooltipMostrar usando expressões regulares
+                    #match = re.search(r"infraTooltipMostrar\('(.+?)'", a_tag.get('onmouseover', ''))
+                    #match = re.search(r"infraTooltipMostrar\('([^']+)'\)", a_tag.get('onmouseover', ''))
+                   
+                    #matchPREV = re.findall(r"infraTooltipMostrar\('([^']+)'(?:,'([^']+?)')*\)", a_tag.get('onmouseover', ''))
+                    #matchPREV2=list(matchPREV)
+                    #match = ' ## '.join(matchPREV2)
+                   
+                   
+                    #tooltip_content = match.group(1) if match else None
+                   
+                    texto = ''
+                    try:
+                        match = re.findall(r"infraTooltipMostrar\('([^']+)'(?:,'([^']+?)')*\)", a_tag.get('onmouseover', ''))
+                        for tp in range(len(match)):
+                            texto = texto+' ## '.join(list(match[tp]))
+                    except:
+                        a=1
+
+                   
+                   
+                   
+                    tooltip_content=texto
+                   
+               
+                # Extrair o conteúdo da função infraTooltipMostrar usando expressões regulares
+           
+               
+                try:
+                    match2 = re.search(r"infraTooltipMostrar\('(.+?)'", a_tag.get('onmouseover', ''))
+                    #match2 = re.search(r"infraTooltipMostrar\('([^']+)'\)", a_tag.get('onmouseover', ''))
+                    #match2 = re.search(r"infraTooltipMostrar\('([^']+)'(?:,'([^']+?)')*\)", a_tag.get('onmouseover', ''))
+                    #match2 = re.findall(r"infraTooltipMostrar\('([^']+)'(?:,'([^']+?)')*\)", a_tag.get('onmouseover', ''))
+                    #print('')
+                    #print('match2')
+                    #print(match2)
+                    tooltip_content2 = match2.group(1) if match2 else None
+                except:
+                    tooltip_content2 =''
+               
+
+            texto = celula.get_text(strip=True)
+            classes = celula.get('class', [])
+            dados_linha.append({'text': texto, 'class': classes,'titulo':tooltip_content,'marca':tooltip_content2 })
+           
+               
+
+       
+        if vai:
+            #listaProcessos.append()
+            dados_tabela.append(dados_linha)
+            #print('')
+            #print('#############')
+            #print('dados_linha')
+            #print(dados_linha)
+            #print('type(dados_linha)')
+            #print(type(dados_linha))
+            listaProcessos.append(dados_linha[2]['text'])
+            listaResponsaveis.append(dados_linha[3]['text'])
+            listarotulo.append(dados_linha[1]['marca'])
+            listaTitulo.append(dados_linha[2]['titulo'])
+
+
+        #print('')
+        #print('')
+        #print('############')
+        #print(dados_linha)
+
+
+
+   
+    #print(dados_tabela)
+
+    #for k in range(len(dados_tabela)):
+    #    print('linha {} -> quantidade itens {}'.format(k+1,len(dados_tabela[k])))
+
+    # Criar um DataFrame do pandas
+    #df = pd.DataFrame(dados_tabela[1:], columns=dados_tabela[0])
+
+    # Imprimir o DataFrame
+    #print(df)
+
+
+   
+
+    #print('time.sleep(10000)')
+    #time.sleep(10000)
+       
+
+
+
+   
+
+
+    return listaProcessos,listaResponsaveis, listarotulo, listaTitulo
+
+   
+from selenium.webdriver.common.alert import Alert
+from selenium import webdriver
+# Verifique e feche todas as janelas e pop-ups
+def fecharTodasAsJanelas_ANTIGO(driver):
+#def close_all_windows(driver):
+    try:
+        # Armazena o identificador da janela principal
+        main_window = driver.current_window_handle
+    except:
+        print("Sessão já foi encerrada, não é possível acessar as janelas.")
+        return  # Sai da função se a sessão já tiver sido encerrada
+
+    # Verifica as janelas abertas
+    for handle in driver.window_handles:
+        try:
+            driver.switch_to.window(handle)
+            # Tenta fechar qualquer alerta que esteja ativo
+            Alert(driver).dismiss()
+            driver.close()
+        except:
+            print("Sessão inválida - janela já foi fechada.")
+            break  # Interrompe o loop, pois a sessão foi encerrada
+
+
+import platform
+   
+def fecharTodasAsJanelas():
+    sistema_operacional = platform.system()
+
+    if sistema_operacional == "Windows":
+        # Encerra o processo do Chrome no Windows
+        os.system("taskkill /f /im chrome.exe")
+    elif sistema_operacional == "Linux" or sistema_operacional == "Darwin":  # Darwin é o macOS
+        # Encerra o processo do Chrome no Linux/macOS
+        os.system("pkill chrome")
+    else:
+        print("Sistema operacional não suportado.")
+
+
+
+def iniciarExtracao():
+    fecharTodasAsJanelas()
+
+    global driver
+   
+    driver = webdriver.Chrome(executable_path=r'C:/Users/Administrador/OneDrive - ibama.gov.br/Documentos/python/python_IBAMA_coprod_sei_demandas/downloadsGeral/chromedriver.exe',options=options2 )
+
+   
+
+    driver.get('http://google.com/')
+    driver.get(enderecoSEI)
+
+
+    #print('espedando 10000')
+    #time.sleep(10000)
+
+
+
+
+    #ACHANDO CAMPO usuario, clicando e colocando usario
+
+    driver.find_element(By.ID,'txtUsuario').click()
+    txt_username_locator = (By.ID, "txtUsuario")
+    element = WebDriverWait(driver, 20).until(EC.element_to_be_clickable(txt_username_locator))
+    element.send_keys("luiz-augusto.costa")
+
+
+    #ACHANDO CAMPO digt, clicando e colocando digt
+    driver.find_element(By.ID,'pwdSenha').click()
+    txt_username_locator = (By.ID, "pwdSenha")
+    element = WebDriverWait(driver, 20).until(EC.element_to_be_clickable(txt_username_locator))
+    element.send_keys(pp())
+
+    #Clicando para entrar
+    #driver.find_element(By.XPATH,'//*[@id="sbmLogin"]').send_keys(Keys.ENTER)
+    #driver.find_element(By.XPATH,'/html/body/div[1]/div/div/form/div/div/div/div/div/div/div[5]/button').send_keys(Keys.ENTER)
+    #driver.find_element(By.XPATH,'//*[@id="sbmLogin"]').send_keys(Keys.ENTER)
+
+   
+
+    driver.find_element(By.XPATH,'//*[@id="sbmAcessar"]').send_keys(Keys.ENTER)
+
+    time.sleep(3)
+    #Para sai de pops abertos
+    #pyautogui.press('esc')
+    # Cria uma instância do ActionChains
+    actions = ActionChains(driver)
+    # Envia a tecla 'Esc'
+    actions.send_keys(Keys.ESCAPE).perform()
+
+   
+
+    #ACHANDO A QUANTIDADE DE PÁGINAS
+    quantidade_opcoes=0
+    html = driver.execute_script("return document.body.outerHTML;")
+    print(html)
+    soup = BeautifulSoup(html,'lxml')
+    #time.sleep(1000)
+    # Encontrar o elemento <select>
+    #select_element = soup.find('select', id='selRecebidosPaginacaoInferior')
+    select_element = soup.find('select', id='selRecebidosPaginacaoInferior')
+    #print(' select_element ')
+    #print(select_element)
+   
+
+
+
+    # Verificar se o elemento <select> foi encontrado
+    if select_element:
+        # Contar o número de opções dentro do <select>
+        quantidade_opcoes = len(select_element.find_all('option'))
+       
+        # Imprimir a quantidade de opções
+        print(f"A quantidade de paginacoes é: {quantidade_opcoes}")
+    else:
+        print("Elemento <select> não encontrado.")
+
+   
+
+
+    listaProcessos,listaResponsaveis, listarotulo, listaTitulo = pegarTodosOsProcessosNaCOPRODMenosVermelho(driver)
+
+    print('')
+    print('##################################')
+    print('listaProcessos')
+    print(listaProcessos)
+    print('')
+    print('##################################')
+    print('listaResponsaveis')
+    print(listaResponsaveis)
+    print('')
+    print('##################################')
+    print('listarotulo')
+    print(listarotulo)
+    print('')
+    print('##################################')
+    print('listaTitulo')
+    print(listaTitulo)
+    #'/html/body/div[1]/div[3]/div[1]/form/div[3]/div[3]/select/option[1]'
+
+    print('quantidade_opcoes')
+    print(quantidade_opcoes)
+
+    # Muda o foco para o iframe de interesse
+    #iframe = driver.find_element(By.XPATH, '//*[@id="divControleProcessosConteudo"]')
+    #iframe = driver.find_element(By.XPATH, '//*[@id="divInfraAreaTelaD"]')
+    #driver.switch_to.frame(iframe)
+
+    for pags in range(quantidade_opcoes):
+    #for pags in range(1):
+        time.sleep(1)
+        if pags!=0:
+
+            #print(html)
+            #ACHANDO CAMPO digt, clicando e colocando digt
+            #driver.find_element(By.XPATH,'/html/body/div[1]/div[3]/div[1]/form/div[3]/div[3]/select/option[{}]'.format(pags+1)).click()
+            driver.find_element(By.ID,'lnkRecebidosProximaPaginaSuperior').click()
+            #driver.find_element(By.XPATH,'/html/body/div[1]/div/div[2]/form/div/div[5]/div[2]/div[1]/select/option[{}]'.format(pags+1)).click()
+            #/html/body/div[1]/div/div[2]/form/div/div[5]/div[2]/div[1]/select/option[2]
+           
+            #if pags==1:
+            #    driver.find_element(By.XPATH,'/html/body/div[1]/div/div[2]/form/div/div[6]/div[2]/div[1]/a[1]/img')
+            #else:
+            #    driver.find_element(By.XPATH,'/html/body/div[1]/div/div[2]/form/div/div[5]/div[2]/div[1]/a[3]/img')
+
+
+           
+           
+           
+            inclistaProcessos,inclistaResponsaveis, inclistarotulo, inclistaTitulo = pegarTodosOsProcessosNaCOPRODMenosVermelho(driver)
+
+            listaProcessos=listaProcessos+inclistaProcessos
+            listaResponsaveis=listaResponsaveis+inclistaResponsaveis
+            listarotulo=listarotulo+inclistarotulo
+            listaTitulo=listaTitulo+inclistaTitulo
+
+    """ print('')
+    print('')
+    print('############')
+    print(len(listaProcessos))
+    print(listaProcessos)
+   
+    print('')
+    print('')
+    print('############')
+    print(len(listaResponsaveis))
+    #print(listaResponsaveis)
+   
+    print('')
+    print('')
+    print('############')
+    print(len(listarotulo))
+    #print(listarotulo)
+   
+    print('')
+    print('')
+    print('############')
+    print(len(listaTitulo))
+    #print(listaTitulo) """
+
+
+    df = pd.DataFrame({
+        'Processo_aberto_naoVermelho':listaProcessos,
+        'atribuido':listaResponsaveis,
+        'rotulo':listarotulo,
+        'titulo_e_tipo':listaTitulo
+    })
+
+    ano=inicio.year
+    mes=inicio.month
+    dia=inicio.day
+    hora=inicio.hour
+    minuto=inicio.minute
+    df.to_csv(pastaGravarScrappings+'/'+'{}_{:02d}_{:02d}__{:02d}h_{:02d}m_abertos.csv'.format(ano,mes,dia,hora,minuto),encoding='UTF8',sep=';')
+
+
+   
+       
+   
+
+
+
+
+
+    #print('time.sleep(10000)')
+    #time.sleep(10000)
+
+
+   
+
+
+
+
+
+
+
+def encontrar_csv_mais_recente(caminho_pasta):
+    try:
+        # Listar todos os arquivos no diretório com extensão .csv
+        arquivos_csv = [f for f in os.listdir(caminho_pasta) if f.endswith('.csv')]
+
+        # Verificar se há pelo menos um arquivo .csv
+        if not arquivos_csv:
+            return None  # Retorna None se não houver arquivos .csv no diretório
+
+        # Construir caminhos completos para os arquivos .csv
+        caminhos_csv = [os.path.join(caminho_pasta, arquivo) for arquivo in arquivos_csv]
+
+        # Encontrar o arquivo .csv mais recente com base na data de modificação
+        arquivo_mais_recente = max(caminhos_csv, key=os.path.getmtime)
+
+        arquivo_mais_recente = arquivo_mais_recente.replace("\\", "/")
+        #print(type(arquivocsvMaisRecente))
+       
+        return arquivo_mais_recente
+
+    except Exception as e:
+        print(f"Ocorreu um erro: {e}")
+        return None
+
+
+def retirarTitulo(tituloEtipo):
+    final=''
+    try:
+        final=tituloEtipo.split('##')[-2].strip()
+    except:
+        a=1
+    return final
+
+
+def retirarTipo(tituloEtipo):
+    final=''
+    try:
+        final=tituloEtipo.split('##')[-1].strip()
+    except:
+        a=1
+    return final
+
+
+def retirarResponsavel(atribuido):
+    final=''
+    try:
+        final=atribuido.replace('(','').replace(')','')
+    except:
+        a=1
+    return final
+
+
+def tratarProcessosAbertos():
+    arquivocsvMaisRecente = encontrar_csv_mais_recente(pastaGravarScrappings)
+
+    #print(arquivocsvMaisRecente)
+
+    df=pd.read_csv(filepath_or_buffer=arquivocsvMaisRecente,engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')
+
+    df['titulo']=df['titulo_e_tipo'].apply(lambda x: retirarTitulo(x))
+    df['tipo']=df['titulo_e_tipo'].apply(lambda x: retirarTipo(x))
+    df['responsavel']=df['atribuido'].apply(lambda x: retirarResponsavel(x))
+
+    #print(df.info())
+    #print(df.columns)
+
+    df.to_csv(pastafinal+'/'+'monitorar.csv',encoding='UTF8',sep=';')
+
+
+
+def int_to_roman(num):
+    val = [
+        2000,1000, 900, 500, 400,
+        100, 90, 50, 40,
+        10, 9, 5, 4,
+        1
+    ]
+    syb = [
+        "MM","M", "CM", "D", "CD",
+        "C", "XC", "L", "XL",
+        "X", "IX", "V", "IV",
+        "I"
+    ]
+    roman_num = ''
+    i = 0
+    while num > 0:
+        for _ in range(num // val[i]):
+            roman_num += syb[i]
+            num -= val[i]
+        i += 1
+    return roman_num
+
+# Criar uma lista com os mil primeiros números romanos
+doismil_primeiros_romanos = [int_to_roman(i) for i in range(1, 2001)]
+
+# Imprimir os primeiros 10 números romanos como exemplo
+#print(doismil_primeiros_romanos[:1000])
+
+
+
+def acharSEI(titulo):
+   
+    final=''
+    if type(titulo)==str:
+        if ')'==titulo[-1]:
+            final = titulo.split('(')[-1].replace(')','')
+            return final
+       
+        listaApoio = titulo.split(' ')
+        if len(listaApoio)>1:
+            final = listaApoio[-1]
+            return final
+   
+    return final
+
+       
+
+
+def procurarConteudo(numeroSEI):
+
+
+    #print('espedando 10000')
+    #time.sleep(10000)
+
+
+   
+    #xpa='/html/body/div[1]/div[2]/div[1]/div[4]/span/form/input'
+
+    txt_username_locator = (By.ID, "txtPesquisaRapida")
+    #txt_username_locator = (By.XPATH, xpa)
+    element = WebDriverWait(driver, 20).until(EC.element_to_be_clickable(txt_username_locator))
+    driver.find_element(By.ID,'txtPesquisaRapida').click()
+    #driver.find_element(By.XPATH,xpa).click()
+    element.send_keys(numeroSEI)
+    driver.find_element(By.XPATH,'//*[@id="txtPesquisaRapida"]').send_keys(Keys.ENTER)
+    #driver.find_element(By.XPATH,xpa).send_keys(Keys.ENTER)
+
+
+def extrairIDdoSPAN(x):
+   
+    try:
+
+        # Parse do HTML com BeautifulSoup
+        soup = BeautifulSoup(x, 'html.parser')
+
+        # Encontrar o elemento <span>
+        elemento_span = soup.find('span')
+
+        # Extrair o valor do atributo 'id'
+        valor_id = elemento_span['id']
+
+        final = valor_id
+
+        # Imprimir o valor do atributo 'id'
+        #print(valor_id)
+        return final
+    except:
+        return ''
+   
+
+
+def acharDadosRecibo(id):
+    a=1
+
+    print('id -> ',id)
+
+    try:
+
+        if id!='':
+       
+            txt_username_locator = (By.ID, id)
+            element = WebDriverWait(driver, 20).until(EC.element_to_be_clickable(txt_username_locator))
+            driver.find_element(By.ID,id).click()
+
+
+            driver.switch_to.default_content()
+
+            iframe = driver.find_element(By.XPATH, '//*[@id="ifrVisualizacao"]')
+
+            # Muda o foco para o iframe de interesse
+            driver.switch_to.frame(iframe)
+
+            iframe = driver.find_element(By.ID, 'ifrArvoreHtml')
+
+            # Muda o foco para o iframe de interesse
+            driver.switch_to.frame(iframe)
+
+
+            html = driver.execute_script("return document.body.outerHTML;")
+            #print(html)
+            soup = BeautifulSoup(html,'lxml')
+
+            # Encontrar a tabela dentro do HTML
+            tabela = soup.find('table')
+
+            # Extrair dados da tabela e criar um DataFrame
+            dados = []
+            for linha in tabela.find_all('tr'):
+                colunas = linha.find_all(['td', 'th'])
+                dados.append([coluna.get_text(strip=True) for coluna in colunas])
+
+            print(dados)
+            # Criar DataFrame
+            df = pd.DataFrame(dados)
+
+            print('df.head(15)')
+            print(df.head(15))
+            print('df.info()')
+            print(df.info())
+
+            print('aguarde . . . ')
+
+            # Inicializar dicionário para armazenar dados estruturados
+            # Dicionário para armazenar dados estruturados
+            structured_data = {}
+            protocolos_cartas = []
+            protocolos_sei = []
+            interessados = []
+            in_interessados = False
+            in_protocolos = False
+
+           
+
+            # Iterar sobre cada item na lista
+            for item in dados:
+                if len(item) == 2:  # Campos com um par 'campo: valor'
+                   
+                    if 'Relacionado ao Processo Indicado:' not in item[0]:
+                        # Checar se é um campo padrão ou 'Protocolos dos Documentos'
+                        if "Protocolos dos Documentos" in item[0]:
+                            in_protocolos = True  # Marca o início dos protocolos
+                            in_interessados = False
+                        elif in_protocolos:
+                            # Adiciona os títulos e os números SEI à lista de protocolos
+                            protocolos_cartas.append(item[0])
+                            protocolos_sei.append(item[1])
+                        else:
+                            # Campos padrão antes de "Interessados" e "Protocolos dos Documentos"
+                            structured_data[item[0].strip(':')] = item[1]
+
+
+
+                elif len(item) == 1:  # Campos como 'Interessados'
+                    if "Interessados" in item[0]:
+                        in_interessados = True  # Marca o início dos interessados
+                        in_protocolos = False
+                    elif in_interessados:
+                        interessados.append(item[0])  # Adiciona o interessado
+
+            # Adicionar listas ao dicionário
+            structured_data['Interessados'] = interessados
+            structured_data['Protocolos (Carta)'] = protocolos_cartas
+            structured_data['Protocolos (Número SEI)'] = protocolos_sei
+
+            # Converter o dicionário em um DataFrame
+            df = pd.DataFrame([structured_data])
+
+            # Exibir o DataFrame
+            print(df)
+
+            print(structured_data)
+            # Converter dicionário em DataFrame
+            df = pd.DataFrame([structured_data])
+
+            print('df.head(15)')
+            print(df.head(15))
+            print('df.info()')
+            print(df.info())
+
+            # Exibir o DataFrame
+            print(df)
+
+
+
+
+
+           
+
+            """ print('')
+            print('')
+            print('')
+            print('########')
+            print('usuario',df[1].values.tolist()[0])
+            print('ip',df[1].values.tolist()[1])
+            print('dataHora',df[1].values.tolist()[2])
+            print('numeroDoProcesso',df[1].values.tolist()[4])
+            print('interessado',df[0].values.tolist()[6])
+            print('protocolos',df[0].values.tolist()[8:])
+            print('SEIs PROTOCOLOS',df[1].values.tolist()[8:]) """
+
+            """ usuario = str(df[1].values.tolist()[0])
+            ip = str(df[1].values.tolist()[1])
+            dataHora = str(df[1].values.tolist()[2])
+            numeroDoProcesso = str(df[1].values.tolist()[4])
+            interessado = str(df[0].values.tolist()[5])
+            protocolos = str(df[0].values.tolist()[7])
+            SEIs =str(df[1].values.tolist()[6]) """
+
+            if 'IP utilizado' in df.columns:
+                usuario = str(df.iloc[0, 0])
+                ip = str(df.iloc[0, 1])
+                dataHora = str(df.iloc[0, 2])
+                numeroDoProcesso = str(df.iloc[0, 4])
+                interessado = str(df.iloc[0, 5])
+                protocolos = str(df.iloc[0, 6])
+                SEIs =str(df.iloc[0, 7])
+            else:
+                usuario = str(df.iloc[0, 0])
+                ip = ''
+                dataHora = str(df.iloc[0, 1])
+                numeroDoProcesso = str(df.iloc[0, 3])
+                interessado = str(df.iloc[0, 4])
+                protocolos = str(df.iloc[0, 5])
+                SEIs =str(df.iloc[0, 6])
+
+               
+            """ if interessado =='Interessados:':
+                interessado = str(df[0].values.tolist()[7])
+                protocolos = str(df[0].values.tolist()[9:])
+                SEIs =str(df[1].values.tolist()[9:]) """
+
+
+            print('usuario')
+            print(usuario)
+            print('dataHora')
+            print(dataHora)
+            print('numeroDoProcesso')
+            print(numeroDoProcesso)
+            print('interessado')
+            print(interessado)
+            print('protocolos')
+            print(protocolos)
+            print('SEIs')
+            print(SEIs)
+            #time.sleep(1000)
+
+
+            # volta o drive pro iframe default
+            driver.switch_to.default_content()
+
+            # Pega o XPath do iframe e atribui a uma variável
+            iframe = driver.find_element(By.XPATH, '//*[@id="ifrArvore"]')
+
+            # Muda o foco para o iframe de interesse da arvore de documentos para voltar a pegar outros ids
+            driver.switch_to.frame(iframe)
+
+
+            return [usuario, ip, dataHora, numeroDoProcesso, interessado, protocolos, SEIs]
+        else:
+            return ['', '', '', '', '', '', '']
+    except:
+        return ['', '', '', '', '', '', '']
+
+
+
+
+
+
+
+#(listaProcessos[num],listaAtribuido[num],listaRotulo[num],listaTitulo[num],listaTipo[num],listaResponsavel[num])
+def scrappingProcesso(numprocesso, rotulo, tituloProcesso, tipo, responsavel):
+   
+    #'/html/body/div[1]/div[2]/div[1]/div[4]/span/form/input'
+
+    #Buscando processo 02001.017006/2019-50
+    txt_username_locator = (By.XPATH, "/html/body/div[1]/nav/div/div[3]/div[2]/div[2]/form/div/input")
+    element = WebDriverWait(driver, 20).until(EC.element_to_be_clickable(txt_username_locator))
+    #driver.find_element(By.ID,'txtPesquisaRapida').click()
+    driver.find_element(By.XPATH,'/html/body/div[1]/nav/div/div[3]/div[2]/div[2]/form/div/input').click()
+    element.send_keys(numprocesso)
+    #driver.find_element(By.XPATH,'//*[@id="txtPesquisaRapida"]').send_keys(Keys.ENTER)
+    driver.find_element(By.XPATH,'/html/body/div[1]/nav/div/div[3]/div[2]/div[2]/form/div/input').send_keys(Keys.ENTER)
+
+   
+
+    # Pega o XPath do iframe e atribui a uma variável
+    iframe = driver.find_element(By.XPATH, '//*[@id="ifrArvore"]')
+
+    # Muda o foco para o iframe de interesse
+    driver.switch_to.frame(iframe)
+
+   
+
+
+    #/html/body/div[2]/div/form/div[1]
+
+    html = driver.execute_script("return document.body.outerHTML;")
+    #print(html)
+    soup = BeautifulSoup(html,'lxml')
+    # Encontre todos os elementos <a> com IDs começando com "ancjoinPASTA"
+    elementos_encontrados = soup.find_all('a', {'id': lambda x: x and x.startswith('ancjoinPASTA')})
+
+    #print('elementos_encontrados')
+    #print('elementos_encontrados')
+    #print('elementos_encontrados')
+    #print(elementos_encontrados)
+
+
+   
+
+    # Imprima os elementos encontrados
+    #for elemento in elementos_encontrados:
+    #    print(elemento)
+
+    # Capturar apenas os valores dos atributos 'id'
+    ids = [elemento['id'] for elemento in elementos_encontrados]
+
+    for id in ids:
+        print(id)
+        numero = id.split('PASTA')[-1]
+        if id!=ids[-1]:
+           
+            txt_username_locator = (By.ID, id)
+            element = WebDriverWait(driver, 20).until(EC.element_to_be_clickable(txt_username_locator))
+            driver.find_element(By.ID,id).click()
+
+            time.sleep(1.2)
+
+
+            html = driver.execute_script("return document.body.outerHTML;")
+            #print(html)
+            soup = BeautifulSoup(html,'lxml')
+            # Encontrar todos os elementos <span>
+            #elementos_span = soup.find_all('span')
+            #titulos = [span.get_text(strip=True) for span in elementos_span]
+
+            # Encontrar o elemento <div> com id="divPASTA15"
+            div_spam = soup.find('div', {'id': 'divPASTA{}'.format(numero)})
+            # Encontrar o texto dentro do elemento <span> com id="spanAGUARDE15"
+           
+            continuar=True
+           
+            try:
+                #titulo_spam = div_spam.find('span', {'id': 'spanAGUARDE{}'.format(numero)}).get('title')
+                titulo_spam = div_spam.find('span', {'id': 'spanAGUARDE{}'.format(numero)}).text.strip()
+                #print('')
+                #print(titulo_spam)
+                #print('spanAGUARDE{}'.format(numero))
+                if titulo_spam == 'Aguarde...':
+                    continuar=True
+                else:
+                    continuar=False
+            except:
+                continuar=False
+
+           
+           
+            while continuar==True:
+                driver.find_element(By.ID,id).click()
+                time.sleep(0.1)
+                driver.find_element(By.ID,id).click()
+                time.sleep(1.2)
+
+
+                html = driver.execute_script("return document.body.outerHTML;")
+                #print(html)
+                soup = BeautifulSoup(html,'lxml')
+                # Encontrar todos os elementos <span>
+                #elementos_span = soup.find_all('span')
+                #titulos = [span.get_text(strip=True) for span in elementos_span]
+
+                try:
+                    #titulo_spam = div_spam.find('span', {'id': 'spanAGUARDE{}'.format(numero)}).get('title')
+                    div_spam = soup.find('div', {'id': 'divPASTA{}'.format(numero)})
+                    titulo_spam = div_spam.find('span', {'id': 'spanAGUARDE{}'.format(numero)}).text.strip()
+                    #print('')
+                    #print('spanAGUARDE{}'.format(numero))
+                    #print(titulo_spam)
+                    if titulo_spam == 'Aguarde...':
+                        continuar=True
+                    else:
+                        continuar=False
+                except:
+                    continuar=False
+               
+               
+               
+
+
+
+
+        time.sleep(0.1)
+   
+   
+
+    # Encontre todos os elementos <a> que contêm um <span> com o texto desejado
+    #elementos_encontrados = soup.find_all('a', {'span': lambda x: x and "Recibo Eletrônico de Protocolo" in x.text})
+
+   
+    html = driver.execute_script("return document.body.outerHTML;")
+    #print(html)
+    soup = BeautifulSoup(html,'lxml')
+   
+    # Encontrar todos os elementos <span>
+    elementos_span = soup.find_all('span')
+
+    # Capturar o texto dentro de cada elemento <span>
+    titulos = [span.get_text(strip=True) for span in elementos_span]
+   
+
+    spanBruto = [span for span in elementos_span]
+
+
+    print('titulos')
+    print('titulos')
+    print('titulos')
+    print('titulos')
+    print(titulos)
+   
+
+   
+
+
+    # Imprimir os textos dos elementos <span>
+    #for titulo in titulos:
+    #    print(titulo)
+
+
+    """ titulosSemRomanos =[]
+    for r in titulos:
+        if titulos[r] not in doismil_primeiros_romanos:
+            titulosSemRomanos.append(titulos[r]) """
+   
+    titulosListaProcessos =[]
+    titulosSpanBruto =[]
+   
+    """ for r in titulos:
+        if type(r)==str:
+
+            if r!='Consultar Andamento':
+                titulosListaProcessos.append(r)
+        else:
+            titulosListaProcessos.append(r) """
+   
+    for r in range(len(titulos)):
+        if type(titulos[r])==str:
+
+            if r!='Consultar Andamento':
+                titulosListaProcessos.append(titulos[r])
+                titulosSpanBruto.append(spanBruto[r])
+        else:
+            titulosListaProcessos.append(titulos[r])
+            titulosSpanBruto.append(spanBruto[r])
+
+
+    lista_sem_vazios = list(filter(None, titulosListaProcessos))
+
+
+   
+    df = pd.DataFrame({
+        'documentos':lista_sem_vazios
+    })
+   
+
+   
+    dfBRUTO = pd.DataFrame({
+        'documentos':titulosListaProcessos,
+        'span':titulosSpanBruto
+    })
+
+    pastaDocumentosPorProcesso
+
+    numprocesso_adp = numprocesso.replace('-','').replace('/','').replace('.','')
+
+    df['numSei']=df['documentos'].apply(lambda x: acharSEI(x))
+   
+    df['numprocesso']=numprocesso
+    df['rotulo']=rotulo
+    df['tituloProcesso']=tituloProcesso
+    df['tipo']=tipo
+    df['responsavel']=responsavel
+    df.to_csv(pastaDocumentosPorProcesso+'/'+'{}.csv'.format(numprocesso_adp),encoding='UTF8',sep=';')
+   
+    dfBRUTO=dfBRUTO[dfBRUTO['documentos']!='']
+   
+   
+   
+    dfBRUTO['numSei']=dfBRUTO['documentos'].apply(lambda x: acharSEI(x))
+    dfBRUTO['id']=dfBRUTO['span'].apply(lambda x: extrairIDdoSPAN(str(x)))
+    dfBRUTO=dfBRUTO[dfBRUTO['numSei']!='Andamento']
+
+    # NOVO
+    #dfBRUTO=dfBRUTO[dfBRUTO['numSei']!='']
+    #dfBRUTO=dfBRUTO[dfBRUTO['numSei']!='Direto']
+    #dfBRUTO = dfBRUTO[dfBRUTO['numSei'].str.match(r'^[0-9]+$')]
+
+
+    #dfBRUTO = dfBRUTO.drop('span', axis=1)
+    #(numprocesso, rotulo, tituloProcesso, tipo, responsavel)
+    dfBRUTO['numprocesso']=numprocesso
+    dfBRUTO['rotulo']=rotulo
+    dfBRUTO['tituloProcesso']=tituloProcesso
+    dfBRUTO['tipo']=tipo
+    dfBRUTO['responsavel']=responsavel
+    dfBRUTO.reset_index(drop=True, inplace=True)
+    dfBRUTO.to_csv(pastaDocumentosPorProcesso+'/'+'BRUTO_{}.csv'.format(numprocesso_adp),encoding='UTF8',sep=';')
+
+
+   
+
+
+    # Texto que você deseja procurar nas colunas
+    texto_procurado = 'Recibo Eletrônico'
+
+    # Filtrar o DataFrame para linhas que contenham o texto_procurado em qualquer coluna
+    #df_filtrado = df[df.apply(lambda row: row.astype(str).str.contains(texto_procurado).any(), axis=1)]
+    df_filtrado2 = dfBRUTO[dfBRUTO.apply(lambda row: row.astype(str).str.contains(texto_procurado).any(), axis=1)]
+
+    # Imprimir o DataFrame resultante
+    #print(df_filtrado)
+
+
+    #df_filtrado.to_csv(pastaDocumentosPorProcessoFiltro+'/'+'{}.csv'.format(numprocesso_adp),encoding='UTF8',sep=';')
+   
+   
+
+    #procurarConteudo('17952644')
+
+   
+
+    """ txt_username_locator = (By.ID, 'span9621530')
+    element = WebDriverWait(driver, 20).until(EC.element_to_be_clickable(txt_username_locator))
+    driver.find_element(By.ID,'span9621530').click()
+
+
+    driver.switch_to.default_content()
+
+    iframe = driver.find_element(By.XPATH, '//*[@id="ifrVisualizacao"]')
+
+    # Muda o foco para o iframe de interesse
+    driver.switch_to.frame(iframe)
+
+
+
+    iframe = driver.find_element(By.ID, 'ifrArvoreHtml')
+
+    # Muda o foco para o iframe de interesse
+    driver.switch_to.frame(iframe)
+
+
+    html = driver.execute_script("return document.body.outerHTML;")
+    print(html)
+    soup = BeautifulSoup(html,'lxml')
+
+
+
+    df_filtrado2['usuario']=
+
+     """
+   
+    #df_filtrado2['usuarioExterno']=df_filtrado2['id'].apply(lambda x: acharDadosRecibo(x))
+    #df_filtrado2[['usuarioExterno', 'ip', 'dataHora', 'numeroDoProcesso', 'interessado', 'protocolos', 'SEIs']]=df_filtrado2['id'].apply(lambda x: acharDadosRecibo(x))
+   
+    numero_de_linhas = df_filtrado2.shape[0]
+
+    if numero_de_linhas>0:
+   
+        df_filtrado2[['usuarioExterno', 'ip', 'dataHora', 'numeroDoProcesso', 'interessado', 'protocolos', 'SEIs']]=df_filtrado2['id'].apply(lambda x: pd.Series(acharDadosRecibo(x)))
+
+        df_filtrado2['numprocesso']=numprocesso
+        df_filtrado2['rotulo']=rotulo
+        df_filtrado2['tituloProcesso']=tituloProcesso
+        df_filtrado2['tipo']=tipo
+        df_filtrado2['responsavel']=responsavel
+
+        df_filtrado2=df_filtrado2[df_filtrado2['id']!='']
+
+        df_filtrado2.to_csv(pastaDocumentosPorProcessoFiltro+'/'+'BRUTO_{}.csv'.format(numprocesso_adp),encoding='UTF8',sep=';')
+
+    # volta o drive pro iframe default
+    driver.switch_to.default_content()
+
+    #print('time.sleep(1000)')
+    #print('time.sleep(1000)')
+    #print('time.sleep(1000)')
+    #print('time.sleep(1000)')
+    #print('time.sleep(1000)')
+    #time.sleep(1000)
+   
+
+
+def listar_arquivos_csv(caminho_da_pasta):
+    arquivos_csv = [arquivo for arquivo in os.listdir(caminho_da_pasta) if arquivo.endswith(".csv")]
+    return arquivos_csv
+
+
+def verifica_arquivo_na_pasta(pasta, nome_arquivo):
+    caminho_completo = os.path.join(pasta, nome_arquivo)
+    return os.path.exists(caminho_completo)
+
+
+def monitorarProcessos():
+
+    #numprocesso='02001.016831/2020-71'
+
+    df=pd.read_csv(filepath_or_buffer=pastafinal+'/'+'monitorar.csv',engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')    
+
+    # 'titulo_e_tipo'   'titulo'    'tipo'      'responsavel'
+
+    listaProcessos = df['Processo_aberto_naoVermelho'].values.tolist()
+    #listaAtribuido = df['atribuido'].values.tolist()
+    listaRotulo = df['rotulo'].values.tolist()
+    listaTitulo = df['titulo'].values.tolist()
+    listaTipo = df['tipo'].values.tolist()
+    listaResponsavel = df['responsavel'].values.tolist()
+
+
+    #lista de arquivos csv na pasta pastaDocumentosPorProcesso
+    arquivos_csv = listar_arquivos_csv(pastaDocumentosPorProcesso)
+
+
+    #total_iteracoes=len(listaProcessos)
+    # Use o tqdm como um gerenciador de contexto
+    #with tqdm(total=total_iteracoes, desc="Processando", unit="it") as barra_progresso:
+    #    for i in range(total_iteracoes):
+           
+
+
+
+
+    #for num in range(len(listaProcessos)):
+    for num in tqdm(range(len(listaProcessos)),desc="Processando monitorarProcessos", ncols=100,dynamic_ncols=False):
+       
+       
+       
+        arquivos_csv = listar_arquivos_csv(pastaDocumentosPorProcesso)
+        arquivoDaVez = 'BRUTO_{}.csv'.format(listaProcessos[num].replace('-','').replace('/','').replace('.',''))
+       
+        # se o arquivo jah foi eXtraído uma única vez nao faz mais extracao, somente a extracao incremental
+        #if verifica_arquivo_na_pasta(pastaDocumentosPorProcesso,+arquivoDaVez)==False:
+        if verifica_arquivo_na_pasta(pasta=pastaDocumentosPorProcesso,nome_arquivo=arquivoDaVez)==False:
+
+       
+            if arquivoDaVez in arquivos_csv:
+                dfapoio=pd.read_csv(filepath_or_buffer=pastaDocumentosPorProcesso+'/'+arquivoDaVez,engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')    
+                listaDocumentos = dfapoio['documentos'].values.tolist()
+
+                """ if 'Aguarde...' in listaDocumentos:
+                    try:
+                        scrappingProcesso(listaProcessos[num],listaRotulo[num],listaTitulo[num],listaTipo[num],listaResponsavel[num])
+                    except Exception as e:
+                        print('')
+                        print('###########################################')
+                        print('Processo {} com erro:'.format(listaProcessos[num]))
+                        print(e)
+                        # volta o drive pro iframe default
+                        driver.switch_to.default_content() """
+                if 'Aguarde...' in listaDocumentos:
+                   
+                    scrappingProcesso(listaProcessos[num],listaRotulo[num],listaTitulo[num],listaTipo[num],listaResponsavel[num])
+                   
+
+
+
+            else:
+
+
+                """ #scrappingProcesso(listaProcessos[num],listaAtribuido[num],listaRotulo[num],listaTitulo[num],listaTipo[num],listaResponsavel[num])
+                try:
+                    scrappingProcesso(listaProcessos[num],listaRotulo[num],listaTitulo[num],listaTipo[num],listaResponsavel[num])
+                except Exception as e:
+                    print('')
+                    print('###########################################')
+                    print('Processo {} com erro:'.format(listaProcessos[num]))
+                    print(e)
+                    # volta o drive pro iframe default
+                    driver.switch_to.default_content() """
+                #scrappingProcesso(listaProcessos[num],listaAtribuido[num],listaRotulo[num],listaTitulo[num],listaTipo[num],listaResponsavel[num])
+               
+                scrappingProcesso(listaProcessos[num],listaRotulo[num],listaTitulo[num],listaTipo[num],listaResponsavel[num])
+               
+
+    time.sleep(0.3)
+           
+           
+           
+
+
+# Listar todos os arquivos no diretório com extensão .csv
+arquivos_csv_brutos = [f for f in os.listdir(pastaDocumentosPorProcesso) if f.endswith('.csv')]
+
+
+def eh_romano(s):
+    pattern = '^M{0,3}(CM|CD|D?C{0,3})(XC|XL|L?X{0,3})(IX|IV|V?I{0,3})$'
+    return re.match(pattern, s) is not None
+
+def filtrarRomanos(lst):
+    return list(filter(eh_romano, lst))
+
+
+def romano_para_inteiro(roman):
+    #print('roman ->', roman)
+    numeraisRomanos = {'I': 1, 'V': 5, 'X': 10, 'L': 50, 'C': 100, 'D': 500, 'M': 1000}
+    resultado = 0
+    valorprevio = 0
+
+    for numeral in reversed(roman):
+        valor = numeraisRomanos[numeral]
+        if valor < valorprevio:
+            resultado -= valor
+        else:
+            resultado += valor
+        valorprevio = valor
+
+    return resultado
+
+
+def encontrarMaiorRomano(listaNumerosRomanos):
+    #print(listaNumerosRomanos)
+
+    # Remover os itens com nome 'Dilic'
+    listaNumerosRomanos = [nome for nome in listaNumerosRomanos if nome != 'Dilic']
+    if not listaNumerosRomanos:
+        return None
+
+    return max(listaNumerosRomanos, key=romano_para_inteiro)
+
+
+# Listar todos os arquivos no diretório com extensão .csv
+arquivos_csv_UNIFICADOS = [f for f in os.listdir(pastaDocumentosPorProcessoUnificados) if f.endswith('.csv')]
+
+
+def acharPastaProximaVerificacaoANTIGA(processoBruto):
+    final = 'naopossui'
+
+    nomeArquivoCSVprocurado = 'BRUTO_{}.csv'.format(processoBruto.replace('-','').replace('/','').replace('.',''))
+
+    try:
+
+        if nomeArquivoCSVprocurado in arquivos_csv_brutos:
+            dfRomano = pd.read_csv(filepath_or_buffer=pastaDocumentosPorProcesso+'/'+nomeArquivoCSVprocurado,engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')
+            listaDocumentos = dfRomano['documentos'].values.tolist()
+
+            listaDocumentosSohRomanos = filtrarRomanos(listaDocumentos)
+
+            maiorRomano = encontrarMaiorRomano(listaDocumentosSohRomanos)
+
+            return maiorRomano
+       
+        return final
+
+   
+    except:
+        return final
+
+
+
+def acharPastaProximaVerificacao(processoBruto):
+    final = 'naopossui'
+
+    nomeArquivoCSVprocurado = 'BRUTO_{}.csv'.format(processoBruto.replace('-','').replace('/','').replace('.',''))
+
+    try:
+
+        if nomeArquivoCSVprocurado in arquivos_csv_brutos:
+            dfRomano = pd.read_csv(filepath_or_buffer=pastaDocumentosPorProcesso+'/'+nomeArquivoCSVprocurado,engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')
+            listaDocumentos = dfRomano['documentos'].values.tolist()
+
+            listaDocumentosSohRomanos = filtrarRomanos(listaDocumentos)
+
+            maiorRomano = encontrarMaiorRomano(listaDocumentosSohRomanos)
+
+            return maiorRomano
+       
+        return final
+
+   
+    except:
+
+        if nomeArquivoCSVprocurado in arquivos_csv_UNIFICADOS:
+            dfRomano = pd.read_csv(filepath_or_buffer=pastaDocumentosPorProcessoUnificados+'/'+nomeArquivoCSVprocurado,engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')
+            listaDocumentos = dfRomano['documentos'].values.tolist()
+
+            listaDocumentosSohRomanos = filtrarRomanos(listaDocumentos)
+
+            maiorRomano = encontrarMaiorRomano(listaDocumentosSohRomanos)
+
+            return maiorRomano
+
+
+
+        return final
+
+
+
+
+def acharPastaProximaVerificacaoUNIFICADO(processoBruto):
+    final = 'naopossui'
+
+    nomeArquivoCSVprocurado = 'BRUTO_{}.csv'.format(processoBruto.replace('-','').replace('/','').replace('.',''))
+
+    try:
+
+        if nomeArquivoCSVprocurado in arquivos_csv_UNIFICADOS:
+            dfRomano = pd.read_csv(filepath_or_buffer=pastaDocumentosPorProcessoUnificados+'/'+nomeArquivoCSVprocurado,engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')
+            listaDocumentos = dfRomano['documentos'].values.tolist()
+
+            listaDocumentosSohRomanos = filtrarRomanos(listaDocumentos)
+
+            maiorRomano = encontrarMaiorRomano(listaDocumentosSohRomanos)
+
+            return maiorRomano
+       
+        return final
+
+   
+    except:
+        return final
+
+
+
+def acharUltimoDocProcessoUNIFICADO(processoBruto):
+    final = 'falha'
+
+    nomeArquivoCSVprocurado = 'BRUTO_{}.csv'.format(processoBruto.replace('-','').replace('/','').replace('.',''))
+
+    try:
+
+        if nomeArquivoCSVprocurado in arquivos_csv_UNIFICADOS:
+            dfRomano = pd.read_csv(filepath_or_buffer=pastaDocumentosPorProcessoUnificados+'/'+nomeArquivoCSVprocurado,engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')
+            #dfRomano=dfRomano[dfRomano['id']!='']
+
+            dfRomano = dfRomano[(dfRomano['id'] != '') & (dfRomano['id'].notna())]
+            listaDocumentos = dfRomano['documentos'].values.tolist()
+
+            ultimoDocumento = listaDocumentos[-1]
+
+            #listaDocumentosSohRomanos = filtrarRomanos(listaDocumentos)
+
+            #maiorRomano = encontrarMaiorRomano(listaDocumentosSohRomanos)
+
+            return ultimoDocumento
+       
+        if nomeArquivoCSVprocurado in arquivos_csv_brutos:
+            dfRomano = pd.read_csv(filepath_or_buffer=pastaDocumentosPorProcesso+'/'+nomeArquivoCSVprocurado,engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')
+            #dfRomano=dfRomano[dfRomano['id']!='']
+            dfRomano = dfRomano[(dfRomano['id'] != '') & (dfRomano['id'].notna())]
+            listaDocumentos = dfRomano['documentos'].values.tolist()
+
+            ultimoDocumento = listaDocumentos[-1]
+
+            #listaDocumentosSohRomanos = filtrarRomanos(listaDocumentos)
+
+            #maiorRomano = encontrarMaiorRomano(listaDocumentosSohRomanos)
+
+            return ultimoDocumento
+       
+        return final
+
+   
+    except:
+        return final
+
+
+
+
+
+
+
+
+def definirUltimaPastaAverificarDeCadaProcesso():
+
+    #existeArquivoMaisNovoComUltimoDocumento = verifica_arquivo_na_pasta(pasta=pastafinal,nome_arquivo='monitorar_ultimaPasta_ultimoDocumento.csv')
+   
+    #if existeArquivoMaisNovoComUltimoDocumento==True:
+    #    a=1
+    #    df = pd.read_csv(filepath_or_buffer=pastafinal+'/monitorar_ultimaPasta_ultimoDocumento.csv',engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')
+    #else:
+    #    df = pd.read_csv(filepath_or_buffer=pastafinal+'/monitorar.csv',engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')
+
+    df = pd.read_csv(filepath_or_buffer=pastafinal+'/monitorar.csv',engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')
+   
+    #listaProcessos = df['Processo_aberto_naoVermelho'].unique()
+   
+    #print(listaProcessos)
+    #print(df.info())
+    #print(df.columns)
+
+    #if existeArquivoMaisNovoComUltimoDocumento==True:
+    #    a=1
+    #    df['proximaPastaVerificar']=df['Processo_aberto_naoVermelho'].progress_apply(lambda x: acharPastaProximaVerificacaoUNIFICADO(x))
+    #else:
+    #    df['proximaPastaVerificar']=df['Processo_aberto_naoVermelho'].progress_apply(lambda x: acharPastaProximaVerificacao(x))
+
+    df['proximaPastaVerificar']=df['Processo_aberto_naoVermelho'].progress_apply(lambda x: acharPastaProximaVerificacao(x))
+   
+    df['ultimoDocumentoProcesso']=df['Processo_aberto_naoVermelho'].progress_apply(lambda x: acharUltimoDocProcessoUNIFICADO(x))
+
+    print(df.info())
+    print(df.columns)
+    df.to_csv(pastafinal+'/monitorar_ultimaPasta.csv',encoding='UTF8',sep=';')
+   
+
+
+def roman_to_int(roman):
+    roman_numerals = {'I': 1, 'V': 5, 'X': 10, 'L': 50, 'C': 100, 'D': 500, 'M': 1000}
+    result = 0
+    prev_value = 0
+
+    for numeral in reversed(roman):
+        value = roman_numerals[numeral]
+        if value < prev_value:
+            result -= value
+        else:
+            result += value
+        prev_value = value
+
+    return result
+
+def transformar_numero_romano_emListaDescrescente_ancjoinPASTA(numero_romano):
+    #valor_inteiro = roman_to_int(numero_romano) - 1
+    valor_inteiro = roman_to_int(numero_romano) - 2
+    lista_resultante = [f'ancjoinPASTA{i}' for i in range(1, valor_inteiro + 1)]
+    return lista_resultante
+
+
+
+
+def eh_romano(s):
+    roman_numerals = {'I': 1, 'V': 5, 'X': 10, 'L': 50, 'C': 100, 'D': 500, 'M': 1000}
+   
+    def is_valid_roman(s):
+        invalid_substrings = ['IIII', 'VV', 'XXXX', 'LL', 'CCCC', 'DD', 'MMMM']
+        return not any(substring in s for substring in invalid_substrings)
+
+    if not isinstance(s, str) or not s:
+        return False
+
+    s = s.upper()
+
+    # Verificar se a string contém apenas caracteres romanos válidos
+    if not all(char in roman_numerals for char in s):
+        return False
+
+    # Verificar se a string não contém padrões inválidos repetidos
+    if not is_valid_roman(s):
+        return False
+
+    # Verificar se a string é um número romano válido
+    try:
+        total = 0
+        prev_value = 0
+
+        for numeral in reversed(s):
+            value = roman_numerals[numeral]
+            if value < prev_value:
+                total -= value
+            else:
+                total += value
+            prev_value = value
+
+        return total > 0
+    except KeyError:
+        return False
+
+
+#(listaProcessos[num],listaAtribuido[num],listaRotulo[num],listaTitulo[num],listaTipo[num],listaResponsavel[num])
+#(listaProcessos[num],listaRotulo[num],listaTitulo[num],listaTipo[num],listaResponsavel[num],listaproximaPastaVerificar[num])
+def scrappingProcessoIncremental(numprocesso, rotulo, tituloProcesso, tipo, responsavel,pastaInicialVerificar,ultimoDocumentoDoProcesso):
+   
+    #'/html/body/div[1]/div[2]/div[1]/div[4]/span/form/input'
+
+    #Buscando processo 02001.017006/2019-50
+    """ txt_username_locator = (By.ID, "txtPesquisaRapida")
+    element = WebDriverWait(driver, 20).until(EC.element_to_be_clickable(txt_username_locator))
+    driver.find_element(By.ID,'txtPesquisaRapida').click()
+    element.send_keys(numprocesso)
+    driver.find_element(By.XPATH,'//*[@id="txtPesquisaRapida"]').send_keys(Keys.ENTER) """
+
+    txt_username_locator = (By.XPATH, "/html/body/div[1]/nav/div/div[3]/div[2]/div[2]/form/div/input")
+    element = WebDriverWait(driver, 20).until(EC.element_to_be_clickable(txt_username_locator))
+    #driver.find_element(By.ID,'txtPesquisaRapida').click()
+    driver.find_element(By.XPATH,'/html/body/div[1]/nav/div/div[3]/div[2]/div[2]/form/div/input').click()
+    element.send_keys(numprocesso)
+    #driver.find_element(By.XPATH,'//*[@id="txtPesquisaRapida"]').send_keys(Keys.ENTER)
+    driver.find_element(By.XPATH,'/html/body/div[1]/nav/div/div[3]/div[2]/div[2]/form/div/input').send_keys(Keys.ENTER)
+
+
+
+
+    # Pega o XPath do iframe e atribui a uma variável
+    iframe = driver.find_element(By.XPATH, '//*[@id="ifrArvore"]')
+
+    # Muda o foco para o iframe de interesse
+    driver.switch_to.frame(iframe)
+
+
+    #time.sleep(1.2)
+    #/html/body/div[2]/div/form/div[1]
+
+    html = driver.execute_script("return document.body.outerHTML;")
+    #print(html)
+    soup = BeautifulSoup(html,'lxml')
+    # Encontre todos os elementos <a> com IDs começando com "ancjoinPASTA"
+    elementos_encontrados = soup.find_all('a', {'id': lambda x: x and x.startswith('ancjoinPASTA')})
+
+   
+    # Encontrar todos os elementos <span>
+    elementos_span = soup.find_all('span')
+
+    # Capturar o texto dentro de cada elemento <span>
+    titulos = [span.get_text(strip=True) for span in elementos_span]
+
+    spanBruto = [span for span in elementos_span]
+
+   
+    # Imprimir os textos dos elementos <span>
+    #print(numprocesso)
+    """ for titulo in titulos:
+        print(titulo)
+    print(numprocesso)
+
+    print('')
+    print('ultimoDocumentoDoProcesso')
+    print(ultimoDocumentoDoProcesso)
+    print('')
+    print('titulos[-3]')
+    print(titulos[-3])
+    print('')
+    print('titulos[-1]')
+    print(titulos[-1]) """
+
+    ultimo = titulos[-3]
+
+    if ultimo!=ultimoDocumentoDoProcesso:
+
+
+
+
+
+        #print('elementos_encontrados')
+        #print(elementos_encontrados)
+
+        # Imprima os elementos encontrados
+        #for elemento in elementos_encontrados:
+        #    print(elemento)
+
+        # Capturar apenas os valores dos atributos 'id'
+        listaIDsNaoPercorrer=[]
+
+        try:
+            if eh_romano(pastaInicialVerificar):
+                listaIDsNaoPercorrer = transformar_numero_romano_emListaDescrescente_ancjoinPASTA(pastaInicialVerificar)
+        except:
+            a=1
+
+        #print('listaIDsNaoPercorrer')
+        #print(listaIDsNaoPercorrer)
+
+
+
+        idsInicial = [elemento['id'] for elemento in elementos_encontrados]
+
+        #print('idsInicial')
+        #print(idsInicial)
+
+        ids = []
+
+        for i in range(len(idsInicial)):
+            if idsInicial[i] not in listaIDsNaoPercorrer:
+                ids.append(idsInicial[i])
+
+        #print('')
+        #print('listaIDs Percorrer')
+        #print(ids)
+       
+        #ABRIR TODAS AS ABAS DO PROCESSO (PARA EFETUAR O SCRAPING DEPOIS)
+        for id in ids:
+            #print(id)
+            numero = id.split('PASTA')[-1]
+            if id!=ids[-1]:
+               
+                txt_username_locator = (By.ID, id)
+                element = WebDriverWait(driver, 20).until(EC.element_to_be_clickable(txt_username_locator))
+                driver.find_element(By.ID,id).click()
+
+                time.sleep(1.2)
+
+
+                html = driver.execute_script("return document.body.outerHTML;")
+                #print(html)
+                soup = BeautifulSoup(html,'lxml')
+                # Encontrar todos os elementos <span>
+                #elementos_span = soup.find_all('span')
+                #titulos = [span.get_text(strip=True) for span in elementos_span]
+
+                # Encontrar o elemento <div> com id="divPASTA15"
+                div_spam = soup.find('div', {'id': 'divPASTA{}'.format(numero)})
+                # Encontrar o texto dentro do elemento <span> com id="spanAGUARDE15"
+               
+                continuar=True
+               
+                try:
+                    #titulo_spam = div_spam.find('span', {'id': 'spanAGUARDE{}'.format(numero)}).get('title')
+                    titulo_spam = div_spam.find('span', {'id': 'spanAGUARDE{}'.format(numero)}).text.strip()
+                    #print('')
+                    #print(titulo_spam)
+                    #print('spanAGUARDE{}'.format(numero))
+                    if titulo_spam == 'Aguarde...':
+                        continuar=True
+                    else:
+                        continuar=False
+                except:
+                    continuar=False
+
+               
+               
+                while continuar==True:
+                    driver.find_element(By.ID,id).click()
+                    time.sleep(0.2)
+                    driver.find_element(By.ID,id).click()
+                    time.sleep(1.8)
+
+
+                    html = driver.execute_script("return document.body.outerHTML;")
+                    #print(html)
+                    soup = BeautifulSoup(html,'lxml')
+                    # Encontrar todos os elementos <span>
+                    #elementos_span = soup.find_all('span')
+                    #titulos = [span.get_text(strip=True) for span in elementos_span]
+
+                    try:
+                        #titulo_spam = div_spam.find('span', {'id': 'spanAGUARDE{}'.format(numero)}).get('title')
+                        div_spam = soup.find('div', {'id': 'divPASTA{}'.format(numero)})
+                        titulo_spam = div_spam.find('span', {'id': 'spanAGUARDE{}'.format(numero)}).text.strip()
+                        #print('')
+                        #print('spanAGUARDE{}'.format(numero))
+                        #print(titulo_spam)
+                        if titulo_spam == 'Aguarde...':
+                            continuar=True
+                        else:
+                            continuar=False
+                    except:
+                        continuar=False
+                   
+                   
+                   
+
+
+
+
+            time.sleep(0.1)
+       
+        #time.sleep(1.2)
+        #EFETUAR O SCRAPING
+        # Encontre todos os elementos <a> que contêm um <span> com o texto desejado
+        #elementos_encontrados = soup.find_all('a', {'span': lambda x: x and "Recibo Eletrônico de Protocolo" in x.text})
+       
+        html = driver.execute_script("return document.body.outerHTML;")
+        #print(html)
+        soup = BeautifulSoup(html,'lxml')
+       
+        # Encontrar todos os elementos <span>
+        elementos_span = soup.find_all('span')
+
+        # Capturar o texto dentro de cada elemento <span>
+        titulos = [span.get_text(strip=True) for span in elementos_span]
+
+        spanBruto = [span for span in elementos_span]
+
+       
+
+
+        # Imprimir os textos dos elementos <span>
+        #print(numprocesso)
+        #for titulo in titulos:
+        #    print(titulo)
+        #print(numprocesso)
+
+
+        """ titulosSemRomanos =[]
+        for r in titulos:
+            if titulos[r] not in doismil_primeiros_romanos:
+                titulosSemRomanos.append(titulos[r]) """
+       
+        titulosListaProcessos =[]
+        titulosSpanBruto =[]
+       
+        """ for r in titulos:
+            if type(r)==str:
+
+                if r!='Consultar Andamento':
+                    titulosListaProcessos.append(r)
+            else:
+                titulosListaProcessos.append(r) """
+       
+        for r in range(len(titulos)):
+            if type(titulos[r])==str:
+
+                if r!='Consultar Andamento':
+                    titulosListaProcessos.append(titulos[r])
+                    titulosSpanBruto.append(spanBruto[r])
+            else:
+                titulosListaProcessos.append(titulos[r])
+                titulosSpanBruto.append(spanBruto[r])
+
+
+        lista_sem_vazios = list(filter(None, titulosListaProcessos))
+
+
+       
+        df = pd.DataFrame({
+            'documentos':lista_sem_vazios
+        })
+       
+
+       
+        dfBRUTO = pd.DataFrame({
+            'documentos':titulosListaProcessos,
+            'span':titulosSpanBruto
+        })
+
+        pastaDocumentosPorProcessoIncremental
+
+        numprocesso_adp = numprocesso.replace('-','').replace('/','').replace('.','')
+
+        df['numSei']=df['documentos'].apply(lambda x: acharSEI(x))
+       
+        df['numprocesso']=numprocesso
+        df['rotulo']=rotulo
+        df['tituloProcesso']=tituloProcesso
+        df['tipo']=tipo
+        df['responsavel']=responsavel
+        df.to_csv(pastaDocumentosPorProcessoIncremental+'/'+'{}.csv'.format(numprocesso_adp),encoding='UTF8',sep=';')
+       
+        dfBRUTO=dfBRUTO[dfBRUTO['documentos']!='']
+       
+        dfBRUTO['numSei']=dfBRUTO['documentos'].apply(lambda x: acharSEI(x))
+        dfBRUTO['id']=dfBRUTO['span'].apply(lambda x: extrairIDdoSPAN(str(x)))
+        dfBRUTO=dfBRUTO[dfBRUTO['numSei']!='Andamento']
+        #dfBRUTO = dfBRUTO.drop('span', axis=1)
+        #(numprocesso, rotulo, tituloProcesso, tipo, responsavel)
+        dfBRUTO['numprocesso']=numprocesso
+        dfBRUTO['rotulo']=rotulo
+        dfBRUTO['tituloProcesso']=tituloProcesso
+        dfBRUTO['tipo']=tipo
+        dfBRUTO['responsavel']=responsavel
+        dfBRUTO.reset_index(drop=True, inplace=True)
+        dfBRUTO.to_csv(pastaDocumentosPorProcessoIncremental+'/'+'BRUTO_{}.csv'.format(numprocesso_adp),encoding='UTF8',sep=';')
+
+
+       
+
+
+        # Texto que você deseja procurar nas colunas
+        texto_procurado = 'Recibo Eletrônico'
+        #print('ids')
+        #print(ids)
+       
+       
+
+        # Filtrar o DataFrame para linhas que contenham o texto_procurado em qualquer coluna
+        #df_filtrado = df[df.apply(lambda row: row.astype(str).str.contains(texto_procurado).any(), axis=1)]
+        try:
+            df_filtrado2 = dfBRUTO[dfBRUTO.apply(lambda row: row.astype(str).str.contains(texto_procurado).any(), axis=1)]
+            #df_filtrado2['usuarioExterno']=df_filtrado2['id'].apply(lambda x: acharDadosRecibo(x))
+            #df_filtrado2[['usuarioExterno', 'ip', 'dataHora', 'numeroDoProcesso', 'interessado', 'protocolos', 'SEIs']]=df_filtrado2['id'].apply(lambda x: acharDadosRecibo(x))
+            df_filtrado2[['usuarioExterno', 'ip', 'dataHora', 'numeroDoProcesso', 'interessado', 'protocolos', 'SEIs']]=df_filtrado2['id'].apply(lambda x: pd.Series(acharDadosRecibo(x)))
+
+            df_filtrado2['numprocesso']=numprocesso
+            df_filtrado2['rotulo']=rotulo
+            df_filtrado2['tituloProcesso']=tituloProcesso
+            df_filtrado2['tipo']=tipo
+            df_filtrado2['responsavel']=responsavel
+            df_filtrado2.to_csv(pastaDocumentosPorProcessoFiltroIncremental+'/'+'BRUTO_{}.csv'.format(numprocesso_adp),encoding='UTF8',sep=';')
+            #print('{} <- TEM RECIBO'.format(numprocesso))
+        except:
+            a=1
+            #print('###### {} ###### <- NAO TEM RECIBO'.format(numprocesso))
+
+        # Imprimir o DataFrame resultante
+        #print(df_filtrado)
+
+
+        #df_filtrado.to_csv(pastaDocumentosPorProcessoFiltro+'/'+'{}.csv'.format(numprocesso_adp),encoding='UTF8',sep=';')
+       
+       
+
+        #procurarConteudo('17952644')
+
+       
+
+        """ txt_username_locator = (By.ID, 'span9621530')
+        element = WebDriverWait(driver, 20).until(EC.element_to_be_clickable(txt_username_locator))
+        driver.find_element(By.ID,'span9621530').click()
+
+
+        driver.switch_to.default_content()
+
+        iframe = driver.find_element(By.XPATH, '//*[@id="ifrVisualizacao"]')
+
+        # Muda o foco para o iframe de interesse
+        driver.switch_to.frame(iframe)
+
+
+
+        iframe = driver.find_element(By.ID, 'ifrArvoreHtml')
+
+        # Muda o foco para o iframe de interesse
+        driver.switch_to.frame(iframe)
+
+
+        html = driver.execute_script("return document.body.outerHTML;")
+        print(html)
+        soup = BeautifulSoup(html,'lxml')
+
+
+
+        df_filtrado2['usuario']=
+
+        """
+   
+   
+
+    # volta o drive pro iframe default
+    driver.switch_to.default_content()
+
+    #print('time.sleep(10000)')
+    #time.sleep(10000)
+
+
+
+
+   
+def monitorarProcessosIncremental():
+
+    global driver
+    driver = webdriver.Chrome(executable_path=r'C:/Users/Administrador/OneDrive - ibama.gov.br/Documentos/python/python_IBAMA_coprod_sei_demandas/downloadsGeral/chromedriver.exe',options=options2 )
+    driver.get('http://google.com/')
+    driver.get(enderecoSEI)
+    #print('espedando 10000')
+    #time.sleep(10000)
+
+    #ACHANDO CAMPO usuario, clicando e colocando usario
+
+    driver.find_element(By.ID,'txtUsuario').click()
+    txt_username_locator = (By.ID, "txtUsuario")
+    element = WebDriverWait(driver, 20).until(EC.element_to_be_clickable(txt_username_locator))
+    element.send_keys("luiz-augusto.costa")
+
+    #ACHANDO CAMPO digt, clicando e colocando digt
+    driver.find_element(By.ID,'pwdSenha').click()
+    txt_username_locator = (By.ID, "pwdSenha")
+    element = WebDriverWait(driver, 20).until(EC.element_to_be_clickable(txt_username_locator))
+    element.send_keys(pp())
+
+    #Clicando para entrar
+    driver.find_element(By.XPATH,'//*[@id="sbmAcessar"]').send_keys(Keys.ENTER)
+   
+
+    time.sleep(3)
+    #Para sai de pops abertos
+    #pyautogui.press('esc')
+    # Cria uma instância do ActionChains
+    actions = ActionChains(driver)
+    # Envia a tecla 'Esc'
+    actions.send_keys(Keys.ESCAPE).perform()
+
+
+
+    #numprocesso='02001.016831/2020-71'
+
+    df=pd.read_csv(filepath_or_buffer=pastafinal+'/'+'monitorar_ultimaPasta.csv',engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')    
+    #df=pd.read_csv(filepath_or_buffer=pastafinal+'/'+'monitorar_ultimaPasta_ultimoDocumento.csv',engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')    
+
+    # 'titulo_e_tipo'   'titulo'    'tipo'      'responsavel'
+
+    listaProcessos = df['Processo_aberto_naoVermelho'].values.tolist()
+    #listaAtribuido = df['atribuido'].values.tolist()
+    listaRotulo = df['rotulo'].values.tolist()
+    listaTitulo = df['titulo'].values.tolist()
+    listaTipo = df['tipo'].values.tolist()
+    listaResponsavel = df['responsavel'].values.tolist()
+    listaproximaPastaVerificar = df['proximaPastaVerificar'].values.tolist()
+    listaultimoDocumentoProcesso = df['ultimoDocumentoProcesso'].values.tolist()
+
+
+    #lista de arquivos csv na pasta pastaDocumentosPorProcesso
+    #arquivos_csv = listar_arquivos_csv(pastaDocumentosPorProcesso)
+
+
+    #total_iteracoes=len(listaProcessos)
+    # Use o tqdm como um gerenciador de contexto
+    #with tqdm(total=total_iteracoes, desc="Processando", unit="it") as barra_progresso:
+    #    for i in range(total_iteracoes):
+           
+
+
+
+
+    #for num in range(len(listaProcessos)):
+    for num in tqdm(range(len(listaProcessos)),desc="Processando monitorarProcessosIncremental", ncols=100,dynamic_ncols=False):
+        #print('')
+        #print('')
+        #print('')
+        #print('###############################')
+        #print('iniciando {}'.format(listaProcessos[num]))
+
+        """ #arquivos_csv = listar_arquivos_csv(pastaDocumentosPorProcesso)
+        arquivoDaVez = 'BRUTO_{}.csv'.format(listaProcessos[num].replace('-','').replace('/','').replace('.',''))
+        #if arquivoDaVez in arquivos_csv:
+        #    dfapoio=pd.read_csv(filepath_or_buffer=pastaDocumentosPorProcesso+'/'+arquivoDaVez,engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')    
+        #    listaDocumentos = dfapoio['documentos'].values.tolist()
+
+        #    if 'Aguarde...' in listaDocumentos:
+               
+                try:
+                    scrappingProcesso(listaProcessos[num],listaRotulo[num],listaTitulo[num],listaTipo[num],listaResponsavel[num])
+                except Exception as e:
+                    print('')
+                    print('###########################################')
+                    print('Processo {} com erro:'.format(listaProcessos[num]))
+                    print(e)
+                    # volta o drive pro iframe default
+                    driver.switch_to.default_content() """
+       
+        try:
+                    scrappingProcessoIncremental(listaProcessos[num],listaRotulo[num],listaTitulo[num],listaTipo[num],listaResponsavel[num],listaproximaPastaVerificar[num],listaultimoDocumentoProcesso[num])
+        except Exception as e:
+            print('')
+            print('###########################################')
+            print('Processo {} com erro:'.format(listaProcessos[num]))
+            print(e)
+            # volta o drive pro iframe default
+            driver.switch_to.default_content()
+       
+
+
+
+
+        """ else:
+
+
+            #scrappingProcesso(listaProcessos[num],listaAtribuido[num],listaRotulo[num],listaTitulo[num],listaTipo[num],listaResponsavel[num])
+            #try:
+            #    scrappingProcesso(listaProcessos[num],listaRotulo[num],listaTitulo[num],listaTipo[num],listaResponsavel[num])
+            #except Exception as e:
+            #    print('')
+            #    print('###########################################')
+            #    print('Processo {} com erro:'.format(listaProcessos[num]))
+            #    print(e)
+            #    # volta o drive pro iframe default
+            #    driver.switch_to.default_content()
+
+            try:
+                    scrappingProcessoIncremental(listaProcessos[num],listaRotulo[num],listaTitulo[num],listaTipo[num],listaResponsavel[num],listaproximaPastaVerificar[num])
+            except Exception as e:
+                print('')
+                print('###########################################')
+                print('Processo {} com erro:'.format(listaProcessos[num]))
+                print(e)
+                # volta o drive pro iframe default
+                driver.switch_to.default_content() """
+   
+   
+    driver.close()
+
+
+
+     
+           
+def unificarBrutoComIncremental():
+    a=1
+
+    df=pd.read_csv(filepath_or_buffer=pastafinal+'/monitorar_ultimaPasta.csv',engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')    
+   
+    print(df.columns)
+
+    listaProcessosMonitorados = df['Processo_aberto_naoVermelho'].values.tolist()
+    #print(listaProcessosMonitorados)
+
+    #listaProcessosMonitorados = ['02001.014681/2022-22','02001.016996/2022-12']
+    #listaProcessosMonitorados = ['02001.017006/2019-50','02001.016996/2022-12']
+
+    listaprocArquivoBruto=listar_arquivos_csv(pastaDocumentosPorProcesso)
+    listaprocArquivoIcremental=listar_arquivos_csv(pastaDocumentosPorProcessoIncremental)
+    listaprocArquivoUnificado=listar_arquivos_csv(pastaDocumentosPorProcessoUnificados)
+
+   
+
+    for p in tqdm(range(len(listaProcessosMonitorados)),desc="Processando unificarBrutoComIncremental", ncols=100,dynamic_ncols=False):
+    #for p in range(len(listaProcessosMonitorados)):
+
+        numprocesso_adp = listaProcessosMonitorados[p].replace('-','').replace('/','').replace('.','')
+        nomeArquivoBruto = 'BRUTO_{}.csv'.format(numprocesso_adp)
+        # SE NAO ESTIVER EM UNIFICADO, PEGA EM BRUTO
+        if ((nomeArquivoBruto in listaprocArquivoBruto) and (nomeArquivoBruto in listaprocArquivoIcremental)) and (nomeArquivoBruto not in listaprocArquivoUnificado):
+            #print('BRUTO -> ',nomeArquivoBruto)
+            dfBruto = pd.read_csv(filepath_or_buffer=pastaDocumentosPorProcesso+'/'+nomeArquivoBruto,engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')
+            dfIncremental = pd.read_csv(filepath_or_buffer=pastaDocumentosPorProcessoIncremental+'/'+nomeArquivoBruto,engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')
+
+            # Concatenar DataFrames com base na coluna 'ID' e manter apenas valores únicos
+            df_concatenado = pd.concat([dfBruto, dfIncremental]).drop_duplicates(subset='documentos').reset_index(drop=True)
+            df_concatenado=df_concatenado[df_concatenado['documentos']!='Aguarde...']
+            #NOVO
+            df_concatenado = df_concatenado[~df_concatenado['documentos'].str.contains('<span class="align-self-center">', na=False)]
+            df_concatenado.reset_index(drop=True,inplace=True)
+            df_concatenado.to_csv(pastaDocumentosPorProcessoUnificados+'/'+nomeArquivoBruto,encoding='UTF8',sep=';')
+        else:
+           
+            # SE ESTIVER EM UNIFICADO, PEGA EM UNIFICADO
+            if ((nomeArquivoBruto in listaprocArquivoBruto) and (nomeArquivoBruto in listaprocArquivoIcremental)) and (nomeArquivoBruto in listaprocArquivoUnificado):
+                #print('UNIFICADO ->',nomeArquivoBruto)
+                dfBruto = pd.read_csv(filepath_or_buffer=pastaDocumentosPorProcessoUnificados+'/'+nomeArquivoBruto,engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')
+                dfIncremental = pd.read_csv(filepath_or_buffer=pastaDocumentosPorProcessoIncremental+'/'+nomeArquivoBruto,engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')
+
+                # Concatenar DataFrames com base na coluna 'ID' e manter apenas valores únicos
+                df_concatenado = pd.concat([dfBruto, dfIncremental]).drop_duplicates(subset='documentos').reset_index(drop=True)
+                df_concatenado=df_concatenado[df_concatenado['documentos']!='Aguarde...']
+                #NOVO
+                df_concatenado = df_concatenado[~df_concatenado['documentos'].str.contains('<span class="align-self-center">', na=False)]
+                df_concatenado.reset_index(drop=True,inplace=True)
+                df_concatenado.to_csv(pastaDocumentosPorProcessoUnificados+'/'+nomeArquivoBruto,encoding='UTF8',sep=';')
+           
+            # SE SOH ESTIVER EM BRUTO - sem incremental, e sem unificado
+            if ((nomeArquivoBruto in listaprocArquivoBruto) and (nomeArquivoBruto not in listaprocArquivoIcremental)) and (nomeArquivoBruto not in listaprocArquivoUnificado):
+                #print('UNIFICADO ->',nomeArquivoBruto)
+                dfBruto = pd.read_csv(filepath_or_buffer=pastaDocumentosPorProcesso+'/'+nomeArquivoBruto,engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')
+                #dfIncremental = pd.read_csv(filepath_or_buffer=pastaDocumentosPorProcessoIncremental+'/'+nomeArquivoBruto,engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')
+
+                # Concatenar DataFrames com base na coluna 'ID' e manter apenas valores únicos
+                #df_concatenado = pd.concat([dfBruto, dfIncremental]).drop_duplicates(subset='documentos').reset_index(drop=True)
+                #df_concatenado=df_concatenado[df_concatenado['documentos']!='Aguarde...']
+                #df_concatenado.reset_index(drop=True,inplace=True)
+                dfBruto.to_csv(pastaDocumentosPorProcessoUnificados+'/'+nomeArquivoBruto,encoding='UTF8',sep=';')
+   
+
+   
+    #REEDITAR O ARQUIVO PARA AUTALIZAR A ULTIMA PASTA BEM COMO O ULTIMO DOCUMENTO
+    # monitorar_ultimaPasta.csv
+    df=pd.read_csv(filepath_or_buffer=pastafinal+'/monitorar_ultimaPasta.csv',engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')    
+    #df=pd.read_csv(filepath_or_buffer=pastafinal+'/monitorar.csv',engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')
+   
+    listaProcessos = df['Processo_aberto_naoVermelho'].unique()
+   
+    #print(listaProcessos)
+    print(df.info())
+    print(df.columns)
+
+    df['proximaPastaVerificar']=df['Processo_aberto_naoVermelho'].progress_apply(lambda x: acharPastaProximaVerificacaoUNIFICADO(x))
+   
+    df['ultimoDocumentoProcesso']=df['Processo_aberto_naoVermelho'].progress_apply(lambda x: acharUltimoDocProcessoUNIFICADO(x))
+
+    print(df.info())
+    print(df.columns)
+    df.to_csv(pastafinal+'/monitorar_ultimaPasta_ultimoDocumento.csv',encoding='UTF8',sep=';')
+   
+
+
+
+
+ 
+           
+def unificarBrutoComIncrementalRECIBOS():
+    a=1
+
+    df=pd.read_csv(filepath_or_buffer=pastafinal+'/monitorar_ultimaPasta.csv',engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')    
+   
+    print(df.columns)
+
+    listaProcessosMonitorados = df['Processo_aberto_naoVermelho'].values.tolist()
+    #print(listaProcessosMonitorados)
+
+    #listaProcessosMonitorados = ['02001.014681/2022-22','02001.016996/2022-12']
+    #listaProcessosMonitorados = ['02001.017006/2019-50','02001.016996/2022-12']
+
+    listaprocArquivoBruto=listar_arquivos_csv(pastaDocumentosPorProcessoFiltro)
+    listaprocArquivoIcremental=listar_arquivos_csv(pastaDocumentosPorProcessoFiltroIncremental)
+    listaprocArquivoUnificado=listar_arquivos_csv(pastaDocumentosPorProcessoFiltroUnificados)
+
+   
+
+    for p in tqdm(range(len(listaProcessosMonitorados)),desc="Processando unificarBrutoComIncrementalRECIBOS", ncols=100,dynamic_ncols=False):
+    #for p in range(len(listaProcessosMonitorados)):
+
+        numprocesso_adp = listaProcessosMonitorados[p].replace('-','').replace('/','').replace('.','')
+        nomeArquivoBruto = 'BRUTO_{}.csv'.format(numprocesso_adp)
+        # SE NAO ESTIVER EM UNIFICADO, PEGA EM BRUTO
+        if ((nomeArquivoBruto in listaprocArquivoBruto) and (nomeArquivoBruto in listaprocArquivoIcremental)) and (nomeArquivoBruto not in listaprocArquivoUnificado):
+            #print('BRUTO -> ',nomeArquivoBruto)
+            dfBruto = pd.read_csv(filepath_or_buffer=pastaDocumentosPorProcessoFiltro+'/'+nomeArquivoBruto,engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')
+            dfIncremental = pd.read_csv(filepath_or_buffer=pastaDocumentosPorProcessoFiltroIncremental+'/'+nomeArquivoBruto,engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')
+
+            # Concatenar DataFrames com base na coluna 'ID' e manter apenas valores únicos
+            df_concatenado = pd.concat([dfBruto, dfIncremental]).drop_duplicates(subset='documentos').reset_index(drop=True)
+            df_concatenado=df_concatenado[df_concatenado['documentos']!='Aguarde...']
+            df_concatenado.reset_index(drop=True,inplace=True)
+            df_concatenado.to_csv(pastaDocumentosPorProcessoFiltroUnificados+'/'+nomeArquivoBruto,encoding='UTF8',sep=';')
+        else:
+           
+            # SE ESTIVER EM UNIFICADO, PEGA EM UNIFICADO
+            if ((nomeArquivoBruto in listaprocArquivoBruto) and (nomeArquivoBruto in listaprocArquivoIcremental)) and (nomeArquivoBruto in listaprocArquivoUnificado):
+                #print('UNIFICADO ->',nomeArquivoBruto)
+                dfBruto = pd.read_csv(filepath_or_buffer=pastaDocumentosPorProcessoFiltroUnificados+'/'+nomeArquivoBruto,engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')
+                dfIncremental = pd.read_csv(filepath_or_buffer=pastaDocumentosPorProcessoFiltroIncremental+'/'+nomeArquivoBruto,engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')
+
+                # Concatenar DataFrames com base na coluna 'ID' e manter apenas valores únicos
+                df_concatenado = pd.concat([dfBruto, dfIncremental]).drop_duplicates(subset='documentos').reset_index(drop=True)
+                df_concatenado=df_concatenado[df_concatenado['documentos']!='Aguarde...']
+                df_concatenado.reset_index(drop=True,inplace=True)
+                df_concatenado.to_csv(pastaDocumentosPorProcessoFiltroUnificados+'/'+nomeArquivoBruto,encoding='UTF8',sep=';')
+           
+            # SE SOH ESTIVER EM BRUTO - sem incremental, e sem unificado
+            if ((nomeArquivoBruto in listaprocArquivoBruto) and (nomeArquivoBruto not in listaprocArquivoIcremental)) and (nomeArquivoBruto not in listaprocArquivoUnificado):
+                #print('UNIFICADO ->',nomeArquivoBruto)
+                dfBruto = pd.read_csv(filepath_or_buffer=pastaDocumentosPorProcessoFiltro+'/'+nomeArquivoBruto,engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')
+                #dfIncremental = pd.read_csv(filepath_or_buffer=pastaDocumentosPorProcessoIncremental+'/'+nomeArquivoBruto,engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')
+
+                # Concatenar DataFrames com base na coluna 'ID' e manter apenas valores únicos
+                #df_concatenado = pd.concat([dfBruto, dfIncremental]).drop_duplicates(subset='documentos').reset_index(drop=True)
+                #df_concatenado=df_concatenado[df_concatenado['documentos']!='Aguarde...']
+                #df_concatenado.reset_index(drop=True,inplace=True)
+                dfBruto.to_csv(pastaDocumentosPorProcessoFiltroUnificados+'/'+nomeArquivoBruto,encoding='UTF8',sep=';')
+   
+
+   
+   
+   
+ 
+
+
+           
+def juntarTodosArquivosDosProcessos():
+   
+    #Listar todos os arquivos finais
+    listaArquivosUnificados = listar_arquivos_csv(pastaDocumentosPorProcessoUnificados)
+
+    print(listaArquivosUnificados)
+    print(len(listaArquivosUnificados))
+
+    dfConcatenado = pd.DataFrame()
+
+    for a in tqdm(range(len(listaArquivosUnificados)),desc="Processando juntarTodosArquivosDosProcessos", ncols=100,dynamic_ncols=False):
+        df = pd.read_csv(filepath_or_buffer=pastaDocumentosPorProcessoUnificados+'/'+listaArquivosUnificados[a],engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')    
+        dfConcatenado=pd.concat([dfConcatenado, df]).reset_index(drop=True)
+        dfConcatenado.reset_index(drop=True,inplace=True)
+
+        if a%250==0:
+            dfConcatenado.to_csv(pastafinal+'/'+'tudaoPARCIAL.csv',encoding='UTF8',sep=';')
+   
+
+    dfConcatenado.to_csv(pastafinal+'/'+'tudao.csv',encoding='UTF8',sep=';')
+
+
+   
+
+
+           
+def juntarTodosArquivosDosRECIBOS():
+   
+    #Listar todos os arquivos finais
+    listaArquivosUnificados = listar_arquivos_csv(pastaDocumentosPorProcessoFiltroUnificados)
+
+    print(listaArquivosUnificados)
+    print(len(listaArquivosUnificados))
+
+    dfConcatenado = pd.DataFrame()
+
+    for a in tqdm(range(len(listaArquivosUnificados)),desc="Processando juntarTodosArquivosdosRECIBOS", ncols=100,dynamic_ncols=False):
+        df = pd.read_csv(filepath_or_buffer=pastaDocumentosPorProcessoFiltroUnificados+'/'+listaArquivosUnificados[a],engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')    
+        dfConcatenado=pd.concat([dfConcatenado, df]).reset_index(drop=True)
+        dfConcatenado.reset_index(drop=True,inplace=True)
+
+        if a%50==0:
+            dfConcatenado.to_csv(pastafinal+'/'+'tudaoRECIBOSParcial.csv',encoding='UTF8',sep=';')
+   
+    #dfConcatenado['dataHoraAJUSTADO']=dfConcatenado['dataHora']
+    #dfConcatenado['dataHoraAJUSTADO']=pd.to_datetime(df['dataHora'], format='%d/%m/%Y %H:%M:%S')
+    #dfConcatenado['dataHoraAJUSTADO'] = dfConcatenado['dataHora'].astype('datetime64[ns]', format='%d/%m/%Y %H:%M:%S')
+    #dfConcatenado['dataHoraAJUSTADO'] = pd.to_datetime(df['dataHora'], format='%d/%m/%Y %H:%M:%S')
+    dfConcatenado['dataHoraAJUSTADO'] = dfConcatenado['dataHora'].apply(lambda x: pd.to_datetime(x, format='%d/%m/%Y %H:%M:%S'))
+   
+    dfConcatenado.to_csv(pastafinal+'/'+'tudaoRECIBOS.csv',encoding='UTF8',sep=';')
+
+    dfrecentes = dfConcatenado[dfConcatenado['dataHoraAJUSTADO']>datetime(2023,12,31)]
+
+    dfrecentes.to_csv(pastafinal+'/'+'tudaoRECIBOS_MONITORAR.csv',encoding='UTF8',sep=';')
+
+
+   
+
+import ast
+
+
+
+""" def encontrar_id_pelo_nome(html, nome):
+    #soup = BeautifulSoup(html, 'html.parser')
+    soup = BeautifulSoup(html,'lxml')
+   
+    # Encontrar o elemento <td> com o texto desejado
+    elemento_td = soup.find('td', text=nome)
+   
+    # Verificar se o elemento <td> foi encontrado
+    if elemento_td:
+        # Encontrar o valor do atributo 'id' no elemento <input> dentro do elemento <td>
+        id_do_input = elemento_td.find('input')['id']
+        return id_do_input
+    else:
+        return None """
+
+
+def encontrar_id_pelo_nome(html, nome):
+    soup = BeautifulSoup(html, 'html.parser')
+   
+    # Encontrar o elemento <td> com o texto desejado
+    elemento_td = soup.find('td', text=lambda x: x and nome in x)
+   
+    # Verificar se o elemento <td> foi encontrado
+    if elemento_td:
+        # Encontrar o valor do atributo 'id' no elemento <input> dentro do elemento <td>
+        id_do_input = elemento_td.find('input', {'id': True})['id']
+        return id_do_input
+    else:
+        return None
+
+
+
+def localizar_chkInfraItem_peloNumeroSEI(html,numeroSEI):
+   
+    # Parse the HTML content with BeautifulSoup
+    soup = BeautifulSoup(html, 'lxml')
+
+    # Find the table with id "tblDocumentos"
+    table = soup.find('table', {'id': 'tblDocumentos'})
+
+    # Extract the column headers
+    headers = [th.text.strip() for th in table.find_all('th', {'class': 'infraTh'})]
+
+    # Initialize a list to store the data
+    data = []
+
+    # Iterate through rows with class "infraTrClara"
+    for row in table.find_all('tr', {'class': 'infraTrClara'}):
+        # Extract the content of each "td"
+        row_data = [td.text.strip() for td in row.find_all('td')]
+       
+        # Extract the IDs starting with "chkInfraItem" and append to the row_data
+        ids = [input_tag['id'] for input_tag in row.find_all('input', {'id': lambda x: x and x.startswith('chkInfraItem')})]
+        row_data.append(ids)
+
+        # Append the row data to the main data list
+        data.append(row_data)
+
+    # Criar a DataFrame
+    df = pd.DataFrame(data, columns=headers + ['chkInfraItemIDs'])
+
+    # Mostrar the DataFrame
+    print(df)
+
+
+    lista = df.loc[df['Nº SEI'] == numeroSEI, 'chkInfraItemIDs'].values[0]
+    #lista = df.loc[df['Nº SEI'] == numeroSEI, 'chkInfraItemIDs'].values
+
+    #print('numeroSEI -> ',numeroSEI)
+    #print('lista -> ',lista)
+    #print(lista)
+
+    final=lista[0]
+
+    return final
+
+
+
+def listar_pastas(caminho):
+    try:
+        # Lista todos os arquivos e pastas no caminho especificado
+        conteudo = os.listdir(caminho)
+
+        # Filtra apenas as pastas
+        pastas = [item for item in conteudo if os.path.isdir(os.path.join(caminho, item))]
+
+        return pastas
+    except Exception as e:
+        print(f"Erro ao listar pastas: {e}")
+        return []
+
+
+
+import subprocess
+def corrigir_permissoes(caminho):
+    try:
+        comando = f'icacls "{caminho}" /grant *S-1-5-32-544:F'
+        subprocess.run(comando, check=True, shell=True)
+        print(f"Permissões corrigidas para {caminho}")
+    except subprocess.CalledProcessError as e:
+        print(f"Erro ao corrigir permissões: {e}")
+
+
+
+def verificar_e_excluir_pasta_vazia(caminho):
+    try:
+
+       
+        # Lista todos os arquivos e pastas no caminho especificado
+        conteudo = os.listdir(caminho)
+
+        # Se a pasta estiver vazia, excluí-la
+        if not conteudo:
+            corrigir_permissoes(caminho)
+            os.rmdir(caminho)
+            print(f"A pasta {caminho} foi excluída, pois estava vazia.")
+        else:
+            print(f"A pasta {caminho} não está vazia e não será excluída.")
+    except Exception as e:
+
+       
+
+
+        print(f"Erro ao verificar e excluir pasta vazia: {e}")
+
+
+def clicarPorXPATH(xp,driver):
+    txt_username_locator = (By.XPATH,xp)
+    element = WebDriverWait(driver, 20).until(EC.element_to_be_clickable(txt_username_locator))
+    driver.find_element(By.XPATH,xp).click()
+    return driver
+
+
+
+def excluir_pasta_como_administrador_ANTIGO(caminho_pasta):
+    comando = f'Start-Process PowerShell -ArgumentList "Remove-Item \'{caminho_pasta}\' -Recurse -Force" -Verb RunAs'
+    try:
+        # Executa o comando com permissão elevada
+        subprocess.run(comando, shell=True, check=True)
+        print(f"Pasta '{caminho_pasta}' foi excluída com sucesso!")
+    except subprocess.CalledProcessError as e:
+        print(f"Erro ao excluir a pasta: {e}")
+
+def excluir_pasta_como_administrador(caminho_pasta):
+    # Adiciona aspas duplas ao redor do caminho e escapa aspas internas
+    comando = f'PowerShell -Command "Start-Process PowerShell -ArgumentList \\"Remove-Item \'{caminho_pasta}\' -Recurse -Force\\" -Verb RunAs"'
+   
+    try:
+        # Executa o comando com permissões elevadas
+        subprocess.run(comando, shell=True, check=True)
+        print(f"Pasta '{caminho_pasta}' foi excluída com sucesso!")
+    except subprocess.CalledProcessError as e:
+        print(f"Erro ao excluir a pasta: {e}")
+    except Exception as e:
+        print(f"Ocorreu um erro inesperado: {e}")
+
+def remover_pastas_vazias(diretorio):
+    if not os.path.isdir(diretorio):
+        print(f"O diretório '{diretorio}' não existe.")
+        return
+
+    for root, dirs, files in os.walk(diretorio, topdown=False):
+        for dir in dirs:
+            caminho_pasta = os.path.join(root, dir)
+            try:
+                if not os.listdir(caminho_pasta):  # Verifica se a pasta está vazia
+                    #os.rmdir(caminho_pasta)       # Remove a pasta
+                    excluir_pasta_como_administrador(caminho_pasta.replace("/", "\\"))
+                    print(f"Pasta vazia removida: {caminho_pasta}")
+            except PermissionError:
+                print(f"Permissão negada: {caminho_pasta}")
+            except Exception as e:
+                print(f"Erro ao tentar remover {caminho_pasta}: {e}")
+
+
+def remover_pastas_vazias_ANTIGO(diretorio):
+    # Verifica se o diretório existe
+    if not os.path.isdir(diretorio):
+        print(f"O diretório '{diretorio}' não existe.")
+        return
+
+    # Percorre todas as pastas e subpastas do diretório
+    for root, dirs, files in os.walk(diretorio, topdown=False):
+        for dir in dirs:
+            caminho_pasta = os.path.join(root, dir)
+            # Verifica se a pasta está vazia
+            if not os.listdir(caminho_pasta):  # Se a pasta está vazia
+                os.rmdir(caminho_pasta)       # Remove a pasta
+                print(f"Pasta vazia removida: {caminho_pasta}")
+
+
+def baixarPDFsAindaNaoBaixadosQuePodemTerOsAssuntoaPartirDe2024():
+
+    #remover_pastas_vazias(pastaDownloadsDOCparaNome)
+   
+    df = pd.read_csv(filepath_or_buffer=pastafinal+'/'+'tudaoRECIBOS_MONITORAR.csv',engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')    
+    print(df.info())
+    print(df.columns)
+
+    listaProcesso = df['numeroDoProcesso'].values.tolist()
+    listaPotenciaisSEIsComAssunto = df['SEIs'].values.tolist()
+    listaSEIacharAssunto = df['numSei'].values.tolist()
+
+    #print(type(listaPotenciaisSEIsComAssunto))
+    #print(listaPotenciaisSEIsComAssunto)
+
+    global driver
+    driver = webdriver.Chrome(executable_path=r'C:/Users/Administrador/OneDrive - ibama.gov.br/Documentos/python/python_IBAMA_coprod_sei_demandas/downloadsGeral/chromedriver.exe',options=options2 )
+    driver.get('http://google.com/')
+    driver.get(enderecoSEI)
+    #print('espedando 10000')
+    #time.sleep(10000)
+
+    #ACHANDO CAMPO usuario, clicando e colocando usario
+
+    driver.find_element(By.ID,'txtUsuario').click()
+    txt_username_locator = (By.ID, "txtUsuario")
+    element = WebDriverWait(driver, 20).until(EC.element_to_be_clickable(txt_username_locator))
+    element.send_keys("luiz-augusto.costa")
+
+    #ACHANDO CAMPO digt, clicando e colocando digt
+    driver.find_element(By.ID,'pwdSenha').click()
+    txt_username_locator = (By.ID, "pwdSenha")
+    element = WebDriverWait(driver, 20).until(EC.element_to_be_clickable(txt_username_locator))
+    element.send_keys(pp())
+
+    #Clicando para entrar
+    #driver.find_element(By.XPATH,'//*[@id="sbmLogin"]').send_keys(Keys.ENTER)
+    driver.find_element(By.XPATH,'//*[@id="sbmAcessar"]').send_keys(Keys.ENTER)
+   
+    time.sleep(3)
+    #Para sai de pops abertos
+    #pyautogui.press('esc')
+    # Cria uma instância do ActionChains
+    actions = ActionChains(driver)
+    # Envia a tecla 'Esc'
+    actions.send_keys(Keys.ESCAPE).perform()
+
+
+    #VERIFICAR PASTAS VAZIAS E DELETAR - FUNCIONANDO - AINDA NAO USAR
+    #pastas_encontradas=listar_pastas(pastaDownloadsDOCparaNome)
+    #for v in range(len(pastas_encontradas)):
+    #    if '_' in pastas_encontradas[v]:
+    #        verificar_e_excluir_pasta_vazia(pastaDownloadsDOCparaNome+'/'+pastas_encontradas[v])
+
+
+
+    #for l in range(len(listaProcesso)):
+    for l in tqdm(range(len(listaProcesso)),desc="Processando cada SEI baixar PDFs", ncols=100,dynamic_ncols=False):
+        SEIsJahVistos=[]
+        listaPastas=listar_pastas(pastaDownloadsDOCparaNome)
+        for se in range(len(listaPastas)):
+            if '_' in listaPastas[se]:
+                seiJahVistos=listaPastas[se].split('_')[-1]
+                SEIsJahVistos.append(seiJahVistos)
+
+
+       
+
+       
+
+        try:
+       
+            listaSEIs = ast.literal_eval(listaPotenciaisSEIsComAssunto[l])
+           
+           
+           
+           
+            for k in range(len(listaSEIs)):
+
+                if listaSEIs[k] not in SEIsJahVistos:
+
+               
+               
+               
+               
+                    #print('listaSEIs[k]')
+                    #print(listaSEIs[k])
+
+                    #mudanca nova nan
+                    #try:
+
+                    if listaSEIs[k]!='':
+                        print(listaSEIs[k])
+
+                        driver.switch_to.default_content()
+
+
+
+
+
+                        #time.sleep(10000)
+                        #txt_username_locator = (By.ID, "txtPesquisaRapida")
+                        '/html/body/div[1]/nav/div/div[3]/div[2]/div[2]/form/div/input'
+                        txt_username_locator = (By.XPATH, "/html/body/div[1]/nav/div/div[3]/div[2]/div[2]/form/div/input")
+                        element = WebDriverWait(driver, 20).until(EC.element_to_be_clickable(txt_username_locator))
+                        #driver.find_element(By.ID,'txtPesquisaRapida').click()
+                        driver.find_element(By.XPATH,'/html/body/div[1]/nav/div/div[3]/div[2]/div[2]/form/div/input').click()
+                        #element.send_keys(listaSEIs[k])
+                        #element.send_keys(listaProcesso[l])
+                        element.send_keys(listaSEIs[k])
+                        #driver.find_element(By.XPATH,'/html/body/div[1]/nav/div/div[3]/div[2]/div[2]/form/div/input').click()
+                        driver.find_element(By.XPATH,'/html/body/div[1]/nav/div/div[3]/div[2]/div[2]/form/div/input').send_keys(Keys.ENTER)
+                        #print('enviou SEI {}'.format(listaProcesso[l]))
+
+                       
+                       
+                        # NUMERO SEI A SER LOCALIZADO
+                        numSEI = listaSEIs[k]
+                        #print('numSEI -> ',numSEI)
+
+                        nomePastaNova=listaProcesso[l].replace('-','').replace('/','').replace('.','')+'_'+numSEI
+                        enderecoPastaNova = pastaDownloadsDOCparaNome+'/'+nomePastaNova
+                        enderecoPastaNovaBarrasDUPLAS=enderecoPastaNova.replace('/','\\')
+                       
+
+                        listaPastas=listar_pastas(pastaDownloadsDOCparaNome)
+                        #print('listaPastas')
+                        #print(listaPastas)
+
+                        #print('nomePastaNova')
+                        #print(nomePastaNova)
+
+                       
+                        if nomePastaNova not in listaPastas:
+                            #print('entrando pra criar pasta e baixar arquivo')
+                            #CRIANDO PASTA COM NUMERO SEI E PROCESSO NO NOME (A SER COLOCADO O DOCUMENTO PDF)
+                            os.mkdir(enderecoPastaNova)
+
+                            # Alterar a pasta de download
+                            new_download_folder = enderecoPastaNovaBarrasDUPLAS
+                            prefs = {"download.default_directory" : new_download_folder, "directory_upgrade": "true", "extensions_to_open": ""}
+                            driver.command_executor._commands["send_command"] = ("POST", '/session/$sessionId/chromium/send_command')
+                            params = {'cmd': 'Page.setDownloadBehavior', 'params': {'behavior': 'allow', 'downloadPath': new_download_folder}}
+                            command_result = driver.execute("send_command", params)
+                       
+                       
+                        txt_username_locator = (By.XPATH,'//*[@id="ifrArvore"]')
+                        element = WebDriverWait(driver, 20).until(EC.element_to_be_clickable(txt_username_locator))
+                        #iframe = driver.find_element(By.XPATH, '//*[@id="divArvoreConteudo"]')
+                        #iframe = driver.find_element(By.XPATH, '//*[@id="divInfraAreaTelaD"]')
+                        iframe = driver.find_element(By.XPATH, '//*[@id="ifrArvore"]')
+
+                        # Muda o foco para o iframe de interesse
+                        driver.switch_to.frame(iframe)
+                       
+                       
+                       
+                        #txt_username_locator = (By.XPATH,"/html/body/div[1]/div/a[2]/span")
+                        txt_username_locator = (By.XPATH,"/html/body/div[1]/div/a[2]")
+                        element = WebDriverWait(driver, 20).until(EC.element_to_be_clickable(txt_username_locator))
+                        #driver.find_element(By.XPATH,"/html/body/div[1]/div/a[2]/span").click()
+                        driver.find_element(By.XPATH,"/html/body/div[1]/div/a[2]").click()
+                        # Encontrar o elemento pela classe e clicar
+                       
+
+                        #html = driver.execute_script("return document.body.outerHTML;")
+                        #print(html)
+                        #soup = BeautifulSoup(html,'lxml')
+                        #print(soup)
+
+                        #print('')
+                        #print('##########################')
+                        #print('')
+                       
+
+                        driver.switch_to.default_content()
+
+                        """ html = driver.execute_script("return document.body.outerHTML;")
+                        #print(html)
+                        soup = BeautifulSoup(html,'lxml')
+                        print(soup) """
+
+                        #txt_username_locator = (By.XPATH,'//*[@id="divIframeVisualizacao"]')
+                        #element = WebDriverWait(driver, 20).until(EC.element_to_be_clickable(txt_username_locator))
+
+                        #iframe = driver.find_element(By.XPATH, '//*[@id="divIframeVisualizacao"]')
+                        iframe = driver.find_element(By.XPATH, '//*[@id="ifrVisualizacao"]')
+                        # Muda o foco para o iframe de interesse
+                        driver.switch_to.frame(iframe)
+
+                       
+
+                        #xp='/html/body/div[1]/div/div/div[2]/div/a[19]/img'
+                        #txt_username_locator = (By.XPATH,xp)
+                        #element = WebDriverWait(driver, 20).until(EC.element_to_be_clickable(txt_username_locator))
+                        #driver.find_element(By.XPATH,xp).click()
+
+                        #xp='/html/body/div[1]/div/div/form/div[2]/div[4]/div/label'
+                        #driver=clicarPorXPATH(xp,driver)
+
+
+                        #xp='/html/body/div[1]/div/div/form/div[2]/div[5]/div/img[1]'
+
+                        # Encontra o elemento com o atributo title específico e clica nele
+                       
+                        # Aguarda até que o elemento com title "Gerar Arquivo PDF do Processo" esteja visível e clicável
+                       
+                       
+                        elemento = WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, '//*[@title="Gerar Arquivo PDF do Processo"]')))
+                        # Clica no elemento
+                        elemento.click()
+
+
+
+                       
+
+
+
+                        xp='/html/body/div[1]/div/div/form/div[2]/div[4]/div/label'
+                        elemento = WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, xp)))
+                        # Clica no elemento
+                        elemento.click()
+
+
+                        xp='/html/body/div[1]/div/div/form/div[2]/div[5]/div/img[1]'
+                        elemento = WebDriverWait(driver, 20).until(EC.element_to_be_clickable((By.XPATH, xp)))
+                        # Clica no elemento
+                        elemento.click()
+
+
+                        driver.switch_to.default_content()
+
+                        # Atributo name do iframe
+                        iframe_name = "modal-frame"
+
+                         # Espera até que o iframe esteja presente na página usando o atributo name
+                        WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.NAME, iframe_name)))
+
+                        # Muda o contexto do Selenium para o iframe específico
+                        driver.switch_to.frame(driver.find_element(By.NAME, iframe_name))
+
+                        # Agora você está dentro do iframe e pode interagir com os elementos internos dele
+                        """ # Exemplo: Captura o HTML da página dentro do iframe
+                        iframe_html = driver.page_source
+                        print("HTML do iframe:", iframe_html) """
+
+                        txt_username_locator = (By.ID, "txtProtocolo")
+                        element = WebDriverWait(driver, 20).until(EC.element_to_be_clickable(txt_username_locator))
+                        element.send_keys('{}'.format(numSEI))
+                        element.send_keys(Keys.ENTER)
+
+
+
+                        #time.sleep(1000)
+
+                        #print('')
+                        #print('########################## 2')
+                        #print('')
+                        #html = driver.execute_script("return document.body.outerHTML;")
+                        #print(html)
+                        #soup = BeautifulSoup(html,'lxml')
+                        #print(soup)
+
+                        try:
+                            #print('buscando tabela')
+                            time.sleep(2)
+
+                            tabela = driver.find_element("xpath", '//*[@id="divInfraAreaTabela"]/table')
+                            # Define o valor que queremos buscar na segunda coluna
+                            valor_busca = '{}'.format(numSEI)
+
+                            # Captura todas as linhas da tabela
+                            linhas = WebDriverWait(driver, 1).until(EC.presence_of_all_elements_located((By.XPATH, "//tbody/tr")))
+
+                            #print(linhas)
+                            #print(f'Número de linhas encontradas: {len(linhas)}')
+
+                            # Variável para armazenar o XPath da última coluna da linha correspondente
+                            xpath_ultima_coluna = 'NAO LOCALIZADO'
+
+                            # Itera sobre as linhas da tabela
+                            for i, linha in enumerate(linhas):
+                                try:
+                                    # Tenta capturar a segunda coluna da linha atual
+                                    # Verifica se a linha tem pelo menos 2 colunas
+                                    colunas = linha.find_elements(By.XPATH, "./td")
+                                    if len(colunas) >= 2:
+                                        segunda_coluna = colunas[1]  # A segunda coluna está na posição 1 (índice 1)
+                                        #retorno = colunas[5]  # A segunda coluna está na posição 1 (índice 1)
+                                       
+                                        #xpath_ultima_coluna = f"(//tbody/tr)[{i + 1}]/td[last()]"
+                                        #print(f"Linha {i + 1}: {segunda_coluna.text.strip()} // {xpath_ultima_coluna}")
+                                        #print(f"Linha {i + 1}: {retorno.text.strip()}")
+                                        # /html/body/div[1]/div/div/form/div[5]/table/tbody/tr[3]/td[6]/a/img
+                                        # /html/body/div[1]/div/div/form/div[5]/table/tbody/tr[4]/td[6]
+
+                                        # /html/body/div[1]/div/div/form/div[5]/table/tbody/tr[3]/td[2]
+                                        #c/html/body/div[1]/div/div/form/div[5]/table/tbody/tr[3]/td[6]
+
+
+                                        if '{}'.format(segunda_coluna.text.strip()) == ''.format(numSEI):
+                                            xpath_ultima_coluna='/html/body/div[1]/div/div/form/div[5]/table/tbody/tr[{}]/td[6]'.format(i)
+                                            #print('SEI {} -> XPATH eh {}'.format(numSEI,xpath_ultima_coluna))
+                                    else:
+                                        #print(f"Linha {i + 1} não tem a segunda coluna.")
+                                        a=1
+                                except Exception as e:
+                                    print(f"Erro ao acessar a segunda coluna na linha {i + 1}: {e}")
+
+
+                            #print('xpath_ultima_coluna -> ',xpath_ultima_coluna)
+
+                            xp='/html/body/div[1]/div/div/form/div[5]/table/tbody/tr[2]/td[6]/a/img'
+                            #print('xpath basico -> ',xp)
+
+                            txt_username_locator = (By.XPATH, xp)
+                            element = WebDriverWait(driver, 20).until(EC.element_to_be_clickable(txt_username_locator))
+       
+                            element.click()
+
+                            driver.switch_to.default_content()
+
+                            iframe = driver.find_element(By.XPATH, '//*[@id="ifrVisualizacao"]')
+                            # Muda o foco para o iframe de interesse
+                            driver.switch_to.frame(iframe)
+
+                            #xp='/html/body/div[1]/div/div/form/div[1]/button[1]'
+                            xp='/html/body/div[1]/div/div/form/div[1]/button[1]'
+                            txt_username_locator = (By.XPATH, xp)
+                            element = WebDriverWait(driver, 20).until(EC.element_to_be_clickable(txt_username_locator))
+                            element.click()
+
+                            time.sleep(1)
+
+                           
+
+
+                        except:
+                            print('Não encontrado SEI como PDF {}'.format(numSEI))
+
+                       
+                        #'/html/body/div[7]/div[2]/div[1]/div[3]/img'
+                        driver.switch_to.default_content()
+
+                        driver.get('https://sei.ibama.gov.br')
+
+
+
+                        # Itera sobre as linhas da tabela
+                        """ for i, linha in enumerate(linhas):
+                            # Captura a segunda coluna da linha atual
+                            segunda_coluna = linha.find_element(By.XPATH, "./td[2]")
+
+                            print(segunda_coluna.text.strip())
+
+                            # Verifica se o valor na segunda coluna é igual ao valor de busca
+                            if segunda_coluna.text.strip() == valor_busca:
+                                # Constrói o XPath da última coluna para a linha atual
+                                xpath_ultima_coluna = f"(//tbody/tr)[{i + 1}]/td[last()]"
+                                break  # Para a busca, já que encontramos o valor """
+
+                        # Exibe o XPath da última coluna da linha encontrada (ou None, caso não encontrado)
+                        #print("XPath da última coluna:", xpath_ultima_coluna)
+
+
+
+
+                       
+                        #/html/body/div[1]/div/div/form/div[2]/div[4]/div/label
+                        #/html/body/div[1]/div/a[2]/span
+
+
+
+
+
+
+
+                        """ time.sleep(1000)
+
+
+                        txt_username_locator = (By.CLASS_NAME,"ancoraVisualizacaoArvore")
+                        elemento = WebDriverWait(driver, 20).until(EC.element_to_be_clickable(txt_username_locator))
+                        elemento = driver.find_element_by_class_name("ancoraVisualizacaoArvore")
+                        elemento.click()
+                        print('entrouPDF') """
+                       
+                       
+                        """ print('enviou processo {}'.format(listaProcesso[l]))
+                        driver.find_element(By.XPATH,'//*[@id="txtPesquisaRapida"]').send_keys(Keys.ENTER)
+                        xp = '//*[@id="lnkInfraMenuSistema"]'
+                        txt_username_locator = (By.XPATH, xp)
+                        element = WebDriverWait(driver, 20).until(EC.element_to_be_clickable(txt_username_locator))
+                        driver.find_element(By.XPATH,xp).click()
+
+                        # Pega o XPath do iframe e atribui a uma variável
+                        iframe = driver.find_element(By.XPATH, '//*[@id="ifrVisualizacao"]')
+
+                        # Muda o foco para o iframe de interesse
+                        driver.switch_to.frame(iframe)
+
+                        txt_username_locator = (By.XPATH, '//*[@id="divArvoreAcoes"]/a[18]') # PDF
+                        element = WebDriverWait(driver, 20).until(EC.element_to_be_clickable(txt_username_locator))
+                        driver.find_element(By.XPATH,'//*[@id="divArvoreAcoes"]/a[18]/img').click()
+                       
+
+                        # CLICAR 2x na caixa tudo para tirar a selecao de tudo
+                        idFoco = '//*[@id="imgInfraCheck"]'
+                        txt_username_locator = (By.XPATH, idFoco)
+                        element = WebDriverWait(driver, 60*5).until(EC.element_to_be_clickable(txt_username_locator))
+                        driver.find_element(By.XPATH,idFoco).click()
+
+                        idFoco = '//*[@id="imgInfraCheck"]'
+                        txt_username_locator = (By.XPATH, idFoco)
+                        element = WebDriverWait(driver, 60*5).until(EC.element_to_be_clickable(txt_username_locator))
+                        driver.find_element(By.XPATH,idFoco).click()
+
+
+
+
+                        html = driver.execute_script("return document.body.outerHTML;")
+
+                        #id = encontrar_id_pelo_nome(html,'Formulário Requisito de Acesso Intergral')
+
+                        # Nome do documento a ser procurado
+                        #nome_documento = "Formulário Requisito de Acesso Intergral"
+                       
+                        # NUMERO SEI A SER LOCALIZADO
+                        numSEI = listaSEIs[k]
+                        print('numSEI -> ',numSEI)
+
+                       
+
+
+                        valor_chkInfraItem=localizar_chkInfraItem_peloNumeroSEI(html,numSEI)
+
+                           
+                        print(valor_chkInfraItem)
+
+                       
+
+                        # CLICAR no arquivo a ser baixado
+                        idFoco = '//*[@id="{}"]'.format(valor_chkInfraItem)
+                        txt_username_locator = (By.XPATH, idFoco)
+                        element = WebDriverWait(driver, 60*5).until(EC.element_to_be_clickable(txt_username_locator))
+                        driver.find_element(By.XPATH,idFoco).click()
+
+                       
+
+                        #nomePastaNova=numSEI+'_'+listaProcesso[l].replace('-','').replace('/','').replace('.','')
+                        nomePastaNova=listaProcesso[l].replace('-','').replace('/','').replace('.','')+'_'+numSEI
+                        enderecoPastaNova = pastaDownloadsDOCparaNome+'/'+nomePastaNova
+                        enderecoPastaNovaBarrasDUPLAS=enderecoPastaNova.replace('/','\\')
+                       
+
+                        listaPastas=listar_pastas(pastaDownloadsDOCparaNome)
+                        print('listaPastas')
+                        print(listaPastas)
+
+                        print('nomePastaNova')
+                        print(nomePastaNova)
+
+                       
+                        if nomePastaNova not in listaPastas:
+                            print('entrando pra criar pasta e baixar arquivo')
+                            #CRIANDO PASTA COM NUMERO SEI E PROCESSO NO NOME (A SER COLOCADO O DOCUMENTO PDF)
+                            os.mkdir(enderecoPastaNova)
+
+                            # Alterar a pasta de download
+                            new_download_folder = enderecoPastaNovaBarrasDUPLAS
+                            prefs = {"download.default_directory" : new_download_folder, "directory_upgrade": "true", "extensions_to_open": ""}
+                            driver.command_executor._commands["send_command"] = ("POST", '/session/$sessionId/chromium/send_command')
+                            params = {'cmd': 'Page.setDownloadBehavior', 'params': {'behavior': 'allow', 'downloadPath': new_download_folder}}
+                            command_result = driver.execute("send_command", params)
+
+
+                           
+                            #Baixar
+                            xp = '//*[@id="divInfraBarraComandosSuperior"]/button[1]'
+                            txt_username_locator = (By.XPATH, xp)
+                            element = WebDriverWait(driver, 20).until(EC.element_to_be_clickable(txt_username_locator))
+                            driver.find_element(By.XPATH,xp).click()
+
+                            #print('TS')
+                            #time.sleep(10000)
+                       
+
+                            ####### aqui fim
+
+                            '/html/body/div[1]/div/div/form/div[1]/button[1]'
+                           
+                            try:
+
+                                valor_chkInfraItem=localizar_chkInfraItem_peloNumeroSEI(html,numSEI)
+
+                               
+                                print(valor_chkInfraItem)
+
+                                # CLICAR no arquivo a ser baixado
+                                idFoco = '//*[@id="{}"]'.format(valor_chkInfraItem)
+                                txt_username_locator = (By.XPATH, idFoco)
+                                element = WebDriverWait(driver, 60*5).until(EC.element_to_be_clickable(txt_username_locator))
+                                driver.find_element(By.XPATH,idFoco).click()
+                            except:
+                                a=1
+                                # volta o drive pro iframe default
+                                driver.switch_to.default_content() """
+
+
+
+
+                        # volta o drive pro iframe default
+                        driver.switch_to.default_content()
+                        #time.sleep(20)
+                    #except Exception as e:
+                    #    #print(listaProcesso[l])
+                    #    print(f"Ocorreu um erro: {e}")
+
+        except Exception as e:
+            print(listaProcesso[l])
+            print(f"Ocorreu um erro: {e}")
+            driver.switch_to.default_content()
+   
+    driver.close()
+
+
+
+def extrair_texto_pdf_ANTIGO(caminho_arquivo):
+    textoTotal = ''
+    with open(caminho_arquivo, 'rb') as arquivo_pdf:
+        leitor_pdf = PdfReader(arquivo_pdf)
+       
+        # Lê cada página do PDF e imprime o texto
+       
+        for pagina_numero in range(len(leitor_pdf.pages)):
+            pagina = leitor_pdf.pages[pagina_numero]
+            texto = pagina.extract_text()
+            textoTotal=textoTotal+texto
+            #print(f"Texto da página {pagina_numero + 1}:\n{texto}\n")
+    return textoTotal
+
+def extrair_texto_pdf(caminho_arquivo):
+    textoTotal = ''
+    with open(caminho_arquivo, 'rb') as arquivo_pdf:
+        leitor_pdf = PdfReader(arquivo_pdf)
+       
+        # Lê cada página do PDF e imprime o texto
+        if len(leitor_pdf.pages)>3:
+            for pagina_numero in range(3):
+                pagina = leitor_pdf.pages[pagina_numero]
+                texto = pagina.extract_text()
+                textoTotal=textoTotal+texto
+                #print(f"Texto da página {pagina_numero + 1}:\n{texto}\n")
+        else:
+            for pagina_numero in range(len(leitor_pdf.pages)):
+                pagina = leitor_pdf.pages[pagina_numero]
+                texto = pagina.extract_text()
+                textoTotal=textoTotal+texto
+
+    return textoTotal
+
+
+
+
+
+def substituir_pontosDeCondiconantesPorAsterisco(texto):
+    # Defina um padrão de expressão regular para encontrar pontos entre números
+    padrao = re.compile(r'(\d)\.(\d)')
+
+    # Substitua os pontos pelo caractere '*'
+    texto_modificado = padrao.sub(r'\1*\2', texto)
+
+    return texto_modificado
+
+
+
+
+
+def acharAssuntosDeCadaRECIBOaPartirDe2024_ANTIGO():
+   
+    df = pd.read_csv(filepath_or_buffer=pastafinal+'/'+'tudaoRECIBOS_MONITORAR.csv',engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')    
+
+    listaProcesso = df['numeroDoProcesso'].values.tolist()
+    listaPotenciaisSEIsComAssunto = df['SEIs'].values.tolist()
+    listaSEIacharAssunto = df['numSei'].values.tolist()
+
+   
+   
+    processobruto = '02001.003413/95-88'
+    listaSEIs = ['', '17995249', '17995250']
+    processoSohNumeros = processobruto.replace('-','').replace('/','').replace('.','')
+   
+
+    textoBRUTO=''
+
+    for s in range(len(listaSEIs)):
+        if listaSEIs[s]!='':
+            pasta=processoSohNumeros+'_'+listaSEIs[s]
+            pastaComCaminho = pastaDownloadsDOCparaNome+'/'+pasta
+           
+            listaArquivos_pdf = [arquivo for arquivo in os.listdir(pastaComCaminho) if arquivo.lower().endswith('.pdf')]
+
+            for f in range(len(listaArquivos_pdf)):
+                #object = PdfReader.PdfFileReader(pastaComCaminho+'/'+listaArquivos_pdf[f])
+                #NumPages = object.getNumPages()
+
+                textoBRUTO = textoBRUTO+extrair_texto_pdf(pastaComCaminho+'/'+listaArquivos_pdf[f])
+               
+                """ print('')
+                print('')
+                print('')
+                print('################################################')
+                print(' arquivo {} //// ->> páginas'.format(pastaComCaminho+'/'+listaArquivos_pdf[f]))
+                extrair_texto_pdf(pastaComCaminho+'/'+listaArquivos_pdf[f]) """
+
+                """ PageObj = object.getPage(0)
+                Text = PageObj.extractText()
+
+                Text = Text.replace('\n',' ')
+                Text = Text.replace('       ',' ')
+                Text = Text.replace('      ',' ')
+                Text = Text.replace('     ',' ')
+                Text = Text.replace('    ',' ')
+                Text = Text.replace('   ',' ')
+                Text = Text.replace('  ',' ')
+
+                print(Text) """
+
+
+
+               
+            """ abrirPDF
+
+            object = PyPDF2.PdfFileReader(pasta+'/'+df['listaArquivo'].loc[k])
+            #pegar numero de páginas
+            #NumPages = object.getNumPages()
+            PageObj = object.getPage(0)
+            Text = PageObj.extractText()
+
+            Text = Text.replace('\n',' ')
+            Text = Text.replace('       ',' ')
+            Text = Text.replace('      ',' ')
+            Text = Text.replace('     ',' ')
+            Text = Text.replace('    ',' ')
+            Text = Text.replace('   ',' ')
+            Text = Text.replace('  ',' ') """
+   
+    print(textoBRUTO)
+
+    textoTratado = textoBRUTO
+
+    textoTratado = substituir_pontosDeCondiconantesPorAsterisco(textoTratado)
+
+ 
+
+    textoTratado = textoTratado.replace('\n\n','.')
+    textoTratado = textoTratado.replace('\n',' ')
+    textoTratado = textoTratado.replace('Ilma',' ')
+    textoTratado = textoTratado.replace('Ilmo',' ')
+    textoTratado = textoTratado.replace('Sra',' ')
+    textoTratado = textoTratado.replace('Sr',' ')
+    textoTratado = textoTratado.replace('Rio de Janeiro – RJ','.')
+    textoTratado = textoTratado.replace('Rio de Janeiro, RJ','.')
+    textoTratado = textoTratado.replace(' Assunto:','. Assunto:')
+    textoTratado = textoTratado.replace(' Assunto','. Assunto:')
+    textoTratado = textoTratado.replace('       ',' ')
+    textoTratado = textoTratado.replace('      ',' ')
+    textoTratado = textoTratado.replace('     ',' ')
+    textoTratado = textoTratado.replace('    ',' ')
+    textoTratado = textoTratado.replace('   ',' ')
+    textoTratado = textoTratado.replace('  ',' ')
+
+    listaFrases = textoTratado.split('.')
+
+    #print('listaFrases')
+    #print(listaFrases)
+    # Convertendo todos os elementos para minúsculas
+    lista_minuscula = [item.lower() for item in listaFrases]
+
+   
+    assunto=''
+
+    for ass in range(len(listaFrases)):
+        if 'assunto' in lista_minuscula[ass]:
+            #print('####### Assunto PRINCIPAL -> ',listaFrases[ass])
+            assunto=assunto+listaFrases[ass]+' // '
+
+
+    listaPotenciaisAssuntos = ['simulado', 'emergencia', 'auditoria', 'água produzida', 'socioeconomia', '306', '398']
+   
+    achados = 0
+    for ass in range(len(listaFrases)):
+       
+        for pot in range(len(listaPotenciaisAssuntos)):
+
+            if listaPotenciaisAssuntos[pot] in lista_minuscula[ass] and achados<2:
+                #print('####### Assuntos agregadores -> ',listaFrases[ass])
+                achados = achados+1
+                if achados==2:
+                    assunto=assunto+listaFrases[ass]
+                else:
+                    assunto=assunto+listaFrases[ass]+' // '
+   
+   
+    print('assunto ->')
+    print(assunto)
+    print('##########')
+    print('')
+    print('')
+
+
+
+#def acharAssunto(listaSEIsPotenciaisAssuntos, processo):
+def acharAssuntoTESTE(lista):
+
+    assunto = 'X'
+    #print('############')
+    #print(lista[1])
+    #print(type(lista[1]))
+
+    if lista[-1]=='' or pd.isna(lista[-1]):
+   
+        #try:
+
+        listaSEIs = ast.literal_eval(lista[1])
+        textoTratado=''
+
+        listaSEIs = [valor for valor in listaSEIs if valor not in (None, '','nan')]
+
+        #if lista[1]!="['18332988']" or lista[1]!="['18913055']":
+        #if ('18332988' not in lista[1]) or ('18913055' not in lista[1]):
+        if ('18332988' not in listaSEIs) or ('18913055' not in listaSEIs) or (18332988 not in listaSEIs) or (18913055 not in listaSEIs):
+
+            processo = lista[0]
+            #listaSEIs = ast.literal_eval(lista[1])
+            #print(processo)
+            #print(listaSEIs)
+            #print(type(listaSEIs))
+
+            processoSohNumeros = processo.replace('-','').replace('/','').replace('.','')
+           
+            textoBRUTO=''
+
+            for s in range(len(listaSEIs)):
+
+                if listaSEIs[s]!='':
+                    pasta=processoSohNumeros+'_'+listaSEIs[s]
+                    pastaComCaminho = pastaDownloadsDOCparaNome+'/'+pasta
+                   
+                    #listaArquivos_pdf = [arquivo for arquivo in os.listdir(pastaComCaminho) if arquivo.lower().endswith('.pdf')]
+                    listaArquivos_pdf=[]
+                    try:
+                        listaArquivos_pdf = [arquivo for arquivo in os.listdir(pastaComCaminho) if arquivo.lower().endswith('.pdf')]
+                    except:
+                        a=1
+
+
+                    for f in range(len(listaArquivos_pdf)):
+                        #object = PdfReader.PdfFileReader(pastaComCaminho+'/'+listaArquivos_pdf[f])
+                        #NumPages = object.getNumPages()
+
+                        textoBRUTO = textoBRUTO+extrair_texto_pdf(pastaComCaminho+'/'+listaArquivos_pdf[f])
+                       
+                        """ print('')
+                        print('')
+                        print('')
+                        print('################################################')
+                        print(' arquivo {} //// ->> páginas'.format(pastaComCaminho+'/'+listaArquivos_pdf[f]))
+                        extrair_texto_pdf(pastaComCaminho+'/'+listaArquivos_pdf[f]) """
+
+                        """ PageObj = object.getPage(0)
+                        Text = PageObj.extractText()
+
+                        Text = Text.replace('\n',' ')
+                        Text = Text.replace('       ',' ')
+                        Text = Text.replace('      ',' ')
+                        Text = Text.replace('     ',' ')
+                        Text = Text.replace('    ',' ')
+                        Text = Text.replace('   ',' ')
+                        Text = Text.replace('  ',' ')
+
+                        print(Text) """
+
+
+
+                       
+                    """ abrirPDF
+
+                    object = PyPDF2.PdfFileReader(pasta+'/'+df['listaArquivo'].loc[k])
+                    #pegar numero de páginas
+                    #NumPages = object.getNumPages()
+                    PageObj = object.getPage(0)
+                    Text = PageObj.extractText()
+
+                    Text = Text.replace('\n',' ')
+                    Text = Text.replace('       ',' ')
+                    Text = Text.replace('      ',' ')
+                    Text = Text.replace('     ',' ')
+                    Text = Text.replace('    ',' ')
+                    Text = Text.replace('   ',' ')
+                    Text = Text.replace('  ',' ') """
+           
+            #print(textoBRUTO)
+
+            textoTratado = textoBRUTO
+
+            textoTratado = substituir_pontosDeCondiconantesPorAsterisco(textoTratado)
+
+       
+
+            textoTratado = textoTratado.replace('\n\n','.')
+            textoTratado = textoTratado.replace('\n',' ')
+            textoTratado = textoTratado.replace('Ilma',' ')
+            textoTratado = textoTratado.replace('Ilmo',' ')
+            textoTratado = textoTratado.replace('Sra',' ')
+            textoTratado = textoTratado.replace('Sr',' ')
+            textoTratado = textoTratado.replace('Sr',' ')
+            textoTratado = textoTratado.replace('Rio de Janeiro – RJ','.')
+            textoTratado = textoTratado.replace('Rio de Janeiro, RJ','.')
+            textoTratado = textoTratado.replace(' Assunto:','. Assunto:')
+            textoTratado = textoTratado.replace(' Assunto','. Assunto:')
+
+            # Expressão regular para identificar CEPs
+            padrao_cep = re.compile(r'\b\d{5}-\d{3}\b')
+            textoTratado = padrao_cep.sub('.', textoTratado)
+
+
+            textoTratado = textoTratado.replace('       ',' ')
+            textoTratado = textoTratado.replace('      ',' ')
+            textoTratado = textoTratado.replace('     ',' ')
+            textoTratado = textoTratado.replace('    ',' ')
+            textoTratado = textoTratado.replace('   ',' ')
+            textoTratado = textoTratado.replace('  ',' ')
+
+            listaFrases = textoTratado.split('.')
+
+            #print('listaFrases')
+            #print(listaFrases)
+            # Convertendo todos os elementos para minúsculas
+            lista_minuscula = [item.lower() for item in listaFrases]
+
+           
+            assunto='X'
+
+            for ass in range(len(listaFrases)):
+                if 'assunto' in lista_minuscula[ass]:
+                    #print('####### Assunto PRINCIPAL -> ',listaFrases[ass])
+                    assunto=assunto+listaFrases[ass]+' // '
+
+
+           
+           
+            achados = 0
+            for ass in range(len(listaFrases)):
+               
+                for pot in range(len(listaPotenciaisAssuntos)):
+
+                    if listaPotenciaisAssuntos[pot] in lista_minuscula[ass] and achados<2:
+                        #print('####### Assuntos agregadores -> ',listaFrases[ass])
+                        achados = achados+1
+                        if achados==2:
+                            assunto=assunto+listaFrases[ass]
+                        else:
+                            assunto=assunto+listaFrases[ass]+' // '
+           
+           
+            #print('assunto ->')
+            #print(assunto)
+            #print('##########')
+            #print('')
+            #print('')
+                           
+            if 'PEDIDO DE VISTA EM PROCESSO ADMINISTRATIVO'.lower() in textoTratado.lower():
+                assunto='Pedido de vista'
+
+        #print('final')  
+                       
+        return assunto
+        """ except Exception as e:
+            print(f"Erro ao listar pastas: {e}")
+            return assunto """
+    else:
+        return lista[-1]
+
+def acharAssunto(lista):
+
+    assunto = 'X'
+    #print('############')
+    #print(lista[1])
+    #print(type(lista[1]))
+
+    if lista[-1]=='' or pd.isna(lista[-1]):
+   
+        try:
+
+            listaSEIs = ast.literal_eval(lista[1])
+            textoTratado=''
+
+            listaSEIs = [valor for valor in listaSEIs if valor not in (None, '','nan')]
+
+            #if lista[1]!="['18332988']" or lista[1]!="['18913055']":
+            #if ('18332988' not in lista[1]) or ('18913055' not in lista[1]):
+            if ('18332988' not in listaSEIs) or ('18913055' not in listaSEIs) or (18332988 not in listaSEIs) or (18913055 not in listaSEIs):
+
+                processo = lista[0]
+                #listaSEIs = ast.literal_eval(lista[1])
+                #print(processo)
+                #print(listaSEIs)
+                #print(type(listaSEIs))
+
+                processoSohNumeros = processo.replace('-','').replace('/','').replace('.','')
+               
+                textoBRUTO=''
+
+                for s in range(len(listaSEIs)):
+
+                    if listaSEIs[s]!='':
+                        pasta=processoSohNumeros+'_'+listaSEIs[s]
+                        pastaComCaminho = pastaDownloadsDOCparaNome+'/'+pasta
+                       
+                        #listaArquivos_pdf = [arquivo for arquivo in os.listdir(pastaComCaminho) if arquivo.lower().endswith('.pdf')]
+                        listaArquivos_pdf=[]
+                        try:
+                            listaArquivos_pdf = [arquivo for arquivo in os.listdir(pastaComCaminho) if arquivo.lower().endswith('.pdf')]
+                        except:
+                            a=1
+
+
+                        for f in range(len(listaArquivos_pdf)):
+                            #object = PdfReader.PdfFileReader(pastaComCaminho+'/'+listaArquivos_pdf[f])
+                            #NumPages = object.getNumPages()
+
+                            textoBRUTO = textoBRUTO+extrair_texto_pdf(pastaComCaminho+'/'+listaArquivos_pdf[f])
+                           
+                            """ print('')
+                            print('')
+                            print('')
+                            print('################################################')
+                            print(' arquivo {} //// ->> páginas'.format(pastaComCaminho+'/'+listaArquivos_pdf[f]))
+                            extrair_texto_pdf(pastaComCaminho+'/'+listaArquivos_pdf[f]) """
+
+                            """ PageObj = object.getPage(0)
+                            Text = PageObj.extractText()
+
+                            Text = Text.replace('\n',' ')
+                            Text = Text.replace('       ',' ')
+                            Text = Text.replace('      ',' ')
+                            Text = Text.replace('     ',' ')
+                            Text = Text.replace('    ',' ')
+                            Text = Text.replace('   ',' ')
+                            Text = Text.replace('  ',' ')
+
+                            print(Text) """
+
+
+
+                           
+                        """ abrirPDF
+
+                        object = PyPDF2.PdfFileReader(pasta+'/'+df['listaArquivo'].loc[k])
+                        #pegar numero de páginas
+                        #NumPages = object.getNumPages()
+                        PageObj = object.getPage(0)
+                        Text = PageObj.extractText()
+
+                        Text = Text.replace('\n',' ')
+                        Text = Text.replace('       ',' ')
+                        Text = Text.replace('      ',' ')
+                        Text = Text.replace('     ',' ')
+                        Text = Text.replace('    ',' ')
+                        Text = Text.replace('   ',' ')
+                        Text = Text.replace('  ',' ') """
+               
+                #print(textoBRUTO)
+
+                textoTratado = textoBRUTO
+
+                textoTratado = substituir_pontosDeCondiconantesPorAsterisco(textoTratado)
+
+           
+
+                textoTratado = textoTratado.replace('\n\n','.')
+                textoTratado = textoTratado.replace('\n',' ')
+                textoTratado = textoTratado.replace('Ilma',' ')
+                textoTratado = textoTratado.replace('Ilmo',' ')
+                textoTratado = textoTratado.replace('Sra',' ')
+                textoTratado = textoTratado.replace('Sr',' ')
+                textoTratado = textoTratado.replace('Sr',' ')
+                textoTratado = textoTratado.replace('Rio de Janeiro – RJ','.')
+                textoTratado = textoTratado.replace('Rio de Janeiro, RJ','.')
+                textoTratado = textoTratado.replace(' Assunto:','. Assunto:')
+                textoTratado = textoTratado.replace(' Assunto','. Assunto:')
+
+                # Expressão regular para identificar CEPs
+                padrao_cep = re.compile(r'\b\d{5}-\d{3}\b')
+                textoTratado = padrao_cep.sub('.', textoTratado)
+
+
+                textoTratado = textoTratado.replace('       ',' ')
+                textoTratado = textoTratado.replace('      ',' ')
+                textoTratado = textoTratado.replace('     ',' ')
+                textoTratado = textoTratado.replace('    ',' ')
+                textoTratado = textoTratado.replace('   ',' ')
+                textoTratado = textoTratado.replace('  ',' ')
+
+                listaFrases = textoTratado.split('.')
+
+                #print('listaFrases')
+                #print(listaFrases)
+                # Convertendo todos os elementos para minúsculas
+                lista_minuscula = [item.lower() for item in listaFrases]
+
+               
+                assunto='X'
+
+                for ass in range(len(listaFrases)):
+                    if 'assunto' in lista_minuscula[ass]:
+                        #print('####### Assunto PRINCIPAL -> ',listaFrases[ass])
+                        assunto=assunto+listaFrases[ass]+' // '
+
+
+               
+               
+                achados = 0
+                for ass in range(len(listaFrases)):
+                   
+                    for pot in range(len(listaPotenciaisAssuntos)):
+
+                        if listaPotenciaisAssuntos[pot] in lista_minuscula[ass] and achados<2:
+                            #print('####### Assuntos agregadores -> ',listaFrases[ass])
+                            achados = achados+1
+                            if achados==2:
+                                assunto=assunto+listaFrases[ass]
+                            else:
+                                assunto=assunto+listaFrases[ass]+' // '
+               
+               
+                #print('assunto ->')
+                #print(assunto)
+                #print('##########')
+                #print('')
+                #print('')
+                               
+                if 'PEDIDO DE VISTA EM PROCESSO ADMINISTRATIVO'.lower() in textoTratado.lower():
+                    assunto='Pedido de vista'
+
+            #print('final')  
+                           
+            return assunto
+        except Exception as e:
+            print(f"Erro ao listar pastas: {e}")
+            return assunto
+    else:
+        return lista[-1]
+
+
+
+
+
+from transformers import BartForConditionalGeneration, BartTokenizer
+
+import spacy
+
+# Carregar modelo da língua portuguesa
+#nlp = spacy.load("pt_core_news_sm")
+
+
+
+def pegarXapos(text, keyword, max_length):
+    # Encontrar a posição da palavra-chave no texto (em minúsculas ou maiúsculas)
+    keyword_position = text.lower().find(keyword.lower())
+
+    # Pegar o texto após a palavra-chave e limitá-lo a 300 caracteres
+    if keyword_position != -1:
+        text = text[keyword_position + len(keyword):]
+        remaining_length = len(text)
+        if remaining_length > max_length:
+            text = text[:max_length]  # Pegar até 300 caracteres, se houver mais
+    else:
+        text = ""  # Se a palavra-chave não for encontrada, retorne uma string vazia
+
+    return text
+
+
+
+def inicializarGlobal():
+    global model
+    global tokenizer
+    model = BartForConditionalGeneration.from_pretrained("facebook/bart-large-cnn")
+    tokenizer = BartTokenizer.from_pretrained("facebook/bart-large-cnn")
+
+    #model = BartForConditionalGeneration.from_pretrained("Neuralmind/bart-large-portuguese")
+    #tokenizer = BartTokenizer.from_pretrained("Neuralmind/bart-large-portuguese")
+
+
+
+
+
+def summarize(textoBruto, max_length=150):
+   
+    keyword='Assunto'
+    # Carregar modelo e tokenizador BART pré-treinado para sumarização de texto
+    #model = BartForConditionalGeneration.from_pretrained("facebook/bart-large-cnn")
+    #tokenizer = BartTokenizer.from_pretrained("facebook/bart-large-cnn")
+
+    # Encontrar a posição da palavra-chave no texto (em minúsculas ou maiúsculas)
+    #keyword_position = text.lower().find(keyword.lower())
+    text=textoBruto
+    #print('#################')
+    #print(text)
+
+   
+
+
+   
+    if 'assunto' in text.lower():
+        text=pegarXapos(textoBruto,'assunto',300)
+    #print('#################')
+    #print(text)
+    #print('#################')
+
+    # Pegar o texto após a palavra-chave
+    #if keyword_position != -1:
+    #    text = text[keyword_position + len(keyword):]
+
+   
+    if 'PEDIDO DE VISTA EM PROCESSO ADMINISTRATIVO'.lower() in textoBruto.lower():
+        summary='Pedido de vista'
+    else:
+        # Tokenizar o texto
+        inputs = tokenizer([text], max_length=1024, return_tensors='pt', truncation=True)
+
+        # Gerar sumário
+        summary_ids = model.generate(inputs['input_ids'], max_length=max_length, num_beams=4, early_stopping=True)
+        summary = tokenizer.decode(summary_ids[0], skip_special_tokens=True)
+
+
+
+
+    return summary
+
+
+
+
+
+
+#def acharAssunto(listaSEIsPotenciaisAssuntos, processo):
+def acharAssunto_PLUS_ANTIGO(lista):
+
+    assunto = ''
+
+   
+    try:
+
+        if lista[1]!="['18332988']":
+
+            processo = lista[0]
+            listaSEIs = ast.literal_eval(lista[1])
+            print(processo)
+            print(listaSEIs)
+
+            processoSohNumeros = processo.replace('-','').replace('/','').replace('.','')
+           
+            textoBRUTO=''
+
+            for s in range(len(listaSEIs)):
+                if listaSEIs[s]!='':
+                    pasta=processoSohNumeros+'_'+listaSEIs[s]
+                    pastaComCaminho = pastaDownloadsDOCparaNome+'/'+pasta
+                   
+                    #listaArquivos_pdf = [arquivo for arquivo in os.listdir(pastaComCaminho) if arquivo.lower().endswith('.pdf')]
+                    listaArquivos_pdf=[]
+                    try:
+                        listaArquivos_pdf = [arquivo for arquivo in os.listdir(pastaComCaminho) if arquivo.lower().endswith('.pdf')]
+                    except:
+                        a=1
+
+
+                    for f in range(len(listaArquivos_pdf)):
+                        #object = PdfReader.PdfFileReader(pastaComCaminho+'/'+listaArquivos_pdf[f])
+                        #NumPages = object.getNumPages()
+
+                        textoBRUTO = textoBRUTO+extrair_texto_pdf(pastaComCaminho+'/'+listaArquivos_pdf[f])
+                       
+                        """ print('')
+                        print('')
+                        print('')
+                        print('################################################')
+                        print(' arquivo {} //// ->> páginas'.format(pastaComCaminho+'/'+listaArquivos_pdf[f]))
+                        extrair_texto_pdf(pastaComCaminho+'/'+listaArquivos_pdf[f]) """
+
+                        """ PageObj = object.getPage(0)
+                        Text = PageObj.extractText()
+
+                        Text = Text.replace('\n',' ')
+                        Text = Text.replace('       ',' ')
+                        Text = Text.replace('      ',' ')
+                        Text = Text.replace('     ',' ')
+                        Text = Text.replace('    ',' ')
+                        Text = Text.replace('   ',' ')
+                        Text = Text.replace('  ',' ')
+
+                        print(Text) """
+
+
+
+                       
+                    """ abrirPDF
+
+                    object = PyPDF2.PdfFileReader(pasta+'/'+df['listaArquivo'].loc[k])
+                    #pegar numero de páginas
+                    #NumPages = object.getNumPages()
+                    PageObj = object.getPage(0)
+                    Text = PageObj.extractText()
+
+                    Text = Text.replace('\n',' ')
+                    Text = Text.replace('       ',' ')
+                    Text = Text.replace('      ',' ')
+                    Text = Text.replace('     ',' ')
+                    Text = Text.replace('    ',' ')
+                    Text = Text.replace('   ',' ')
+                    Text = Text.replace('  ',' ') """
+           
+            #print(textoBRUTO)
+
+            textoTratado = textoBRUTO
+
+            textoTratado = substituir_pontosDeCondiconantesPorAsterisco(textoTratado)
+
+       
+
+            textoTratado = textoTratado.replace('\n\n','.')
+            textoTratado = textoTratado.replace('\n',' ')
+            textoTratado = textoTratado.replace('Ilma',' ')
+            textoTratado = textoTratado.replace('Ilmo',' ')
+            textoTratado = textoTratado.replace('Sra',' ')
+            textoTratado = textoTratado.replace('Sr',' ')
+            textoTratado = textoTratado.replace('Sr',' ')
+            textoTratado = textoTratado.replace('Rio de Janeiro – RJ','.')
+            textoTratado = textoTratado.replace('Rio de Janeiro, RJ','.')
+            textoTratado = textoTratado.replace(' Assunto:','. Assunto:')
+            textoTratado = textoTratado.replace(' Assunto','. Assunto:')
+
+            # Expressão regular para identificar CEPs
+            padrao_cep = re.compile(r'\b\d{5}-\d{3}\b')
+            textoTratado = padrao_cep.sub('.', textoTratado)
+
+
+            textoTratado = textoTratado.replace('       ',' ')
+            textoTratado = textoTratado.replace('      ',' ')
+            textoTratado = textoTratado.replace('     ',' ')
+            textoTratado = textoTratado.replace('    ',' ')
+            textoTratado = textoTratado.replace('   ',' ')
+            textoTratado = textoTratado.replace('  ',' ')
+
+            listaFrases = textoTratado.split('.')
+
+            #print('listaFrases')
+            #print(listaFrases)
+            # Convertendo todos os elementos para minúsculas
+            lista_minuscula = [item.lower() for item in listaFrases]
+
+           
+            assunto=''
+
+            """ for ass in range(len(listaFrases)):
+                if 'assunto' in lista_minuscula[ass]:
+                    #print('####### Assunto PRINCIPAL -> ',listaFrases[ass])
+                    assunto=assunto+listaFrases[ass]+' // '
+
+
+           
+           
+            achados = 0
+            for ass in range(len(listaFrases)):
+               
+                for pot in range(len(listaPotenciaisAssuntos)):
+
+                    if listaPotenciaisAssuntos[pot] in lista_minuscula[ass] and achados<2:
+                        #print('####### Assuntos agregadores -> ',listaFrases[ass])
+                        achados = achados+1
+                        if achados==2:
+                            assunto=assunto+listaFrases[ass]
+                        else:
+                            assunto=assunto+listaFrases[ass]+' // ' """
+           
+
+            try:
+                assunto=summarize(textoTratado)
+            except Exception as e:
+                assunto=''
+                print(f"Erro ao listar pastas: {e}")
+
+           
+           
+            print(textoBRUTO)
+            print('##########')
+            print(textoTratado)
+            print('##########')
+            print('assunto ->')
+            print(assunto)
+            print('##########')
+            print('')
+            print('')
+                       
+        return assunto
+    except Exception as e:
+        print(f"Erro ao listar pastas: {e}")
+        return assunto
+
+
+
+
+def limitar_string(texto, limite):
+    if len(texto) > limite:
+        return texto[:limite]  # Retorna apenas os primeiros `limite` caracteres
+    else:
+        return texto  # Retorna o texto inteiro se for menor ou igual ao limite
+
+
+
+#def acharAssunto(listaSEIsPotenciaisAssuntos, processo):
+def acharAssunto_PLUS(lista):
+
+    assunto = 'X'
+
+    if lista[-1]=='' or pd.isna(lista[-1]) or lista[-1]=='X ERRO API':
+   
+        try:
+
+            if lista[1]!="['18332988']":
+
+                processo = lista[0]
+                listaSEIs = ast.literal_eval(lista[1])
+                listaSEIs = [valor for valor in listaSEIs if valor not in (None, '')]
+                #print(processo)
+                #print(listaSEIs)
+
+                processoSohNumeros = processo.replace('-','').replace('/','').replace('.','')
+               
+                textoBRUTO=''
+
+                for s in range(len(listaSEIs)):
+                    if listaSEIs[s]!='':
+                        pasta=processoSohNumeros+'_'+listaSEIs[s]
+                        pastaComCaminho = pastaDownloadsDOCparaNome+'/'+pasta
+                       
+                        #listaArquivos_pdf = [arquivo for arquivo in os.listdir(pastaComCaminho) if arquivo.lower().endswith('.pdf')]
+                        listaArquivos_pdf=[]
+                        try:
+                            listaArquivos_pdf = [arquivo for arquivo in os.listdir(pastaComCaminho) if arquivo.lower().endswith('.pdf')]
+                        except:
+                            a=1
+
+
+                        for f in range(len(listaArquivos_pdf)):
+                            #object = PdfReader.PdfFileReader(pastaComCaminho+'/'+listaArquivos_pdf[f])
+                            #NumPages = object.getNumPages()
+
+                            textoBRUTO = textoBRUTO+extrair_texto_pdf(pastaComCaminho+'/'+listaArquivos_pdf[f])
+                           
+                            """ print('')
+                            print('')
+                            print('')
+                            print('################################################')
+                            print(' arquivo {} //// ->> páginas'.format(pastaComCaminho+'/'+listaArquivos_pdf[f]))
+                            extrair_texto_pdf(pastaComCaminho+'/'+listaArquivos_pdf[f]) """
+
+                            """ PageObj = object.getPage(0)
+                            Text = PageObj.extractText()
+
+                            Text = Text.replace('\n',' ')
+                            Text = Text.replace('       ',' ')
+                            Text = Text.replace('      ',' ')
+                            Text = Text.replace('     ',' ')
+                            Text = Text.replace('    ',' ')
+                            Text = Text.replace('   ',' ')
+                            Text = Text.replace('  ',' ')
+
+                            print(Text) """
+
+
+
+                           
+                        """ abrirPDF
+
+                        object = PyPDF2.PdfFileReader(pasta+'/'+df['listaArquivo'].loc[k])
+                        #pegar numero de páginas
+                        #NumPages = object.getNumPages()
+                        PageObj = object.getPage(0)
+                        Text = PageObj.extractText()
+
+                        Text = Text.replace('\n',' ')
+                        Text = Text.replace('       ',' ')
+                        Text = Text.replace('      ',' ')
+                        Text = Text.replace('     ',' ')
+                        Text = Text.replace('    ',' ')
+                        Text = Text.replace('   ',' ')
+                        Text = Text.replace('  ',' ') """
+               
+                #print(textoBRUTO)
+
+                textoTratado = textoBRUTO
+
+                textoTratado = substituir_pontosDeCondiconantesPorAsterisco(textoTratado)
+
+           
+
+                textoTratado = textoTratado.replace('\n\n','.')
+                textoTratado = textoTratado.replace('\n',' ')
+                textoTratado = textoTratado.replace('Ilma',' ')
+                textoTratado = textoTratado.replace('Ilmo',' ')
+                textoTratado = textoTratado.replace('Sra',' ')
+                textoTratado = textoTratado.replace('Sr',' ')
+                textoTratado = textoTratado.replace('Sr',' ')
+                textoTratado = textoTratado.replace('Rio de Janeiro – RJ','.')
+                textoTratado = textoTratado.replace('Rio de Janeiro, RJ','.')
+                textoTratado = textoTratado.replace(' Assunto:','. Assunto:')
+                textoTratado = textoTratado.replace(' Assunto','. Assunto:')
+
+                # Expressão regular para identificar CEPs
+                padrao_cep = re.compile(r'\b\d{5}-\d{3}\b')
+                textoTratado = padrao_cep.sub('.', textoTratado)
+
+
+                textoTratado = textoTratado.replace('       ',' ')
+                textoTratado = textoTratado.replace('      ',' ')
+                textoTratado = textoTratado.replace('     ',' ')
+                textoTratado = textoTratado.replace('    ',' ')
+                textoTratado = textoTratado.replace('   ',' ')
+                textoTratado = textoTratado.replace('  ',' ')
+
+                listaFrases = textoTratado.split('.')
+
+                #print('listaFrases')
+                #print(listaFrases)
+                # Convertendo todos os elementos para minúsculas
+                lista_minuscula = [item.lower() for item in listaFrases]
+
+               
+                assunto='X'
+
+                """ for ass in range(len(listaFrases)):
+                    if 'assunto' in lista_minuscula[ass]:
+                        #print('####### Assunto PRINCIPAL -> ',listaFrases[ass])
+                        assunto=assunto+listaFrases[ass]+' // '
+
+
+               
+               
+                achados = 0
+                for ass in range(len(listaFrases)):
+                   
+                    for pot in range(len(listaPotenciaisAssuntos)):
+
+                        if listaPotenciaisAssuntos[pot] in lista_minuscula[ass] and achados<2:
+                            #print('####### Assuntos agregadores -> ',listaFrases[ass])
+                            achados = achados+1
+                            if achados==2:
+                                assunto=assunto+listaFrases[ass]
+                            else:
+                                assunto=assunto+listaFrases[ass]+' // ' """
+               
+
+               
+                if textoTratado=='' or len(textoTratado)==0:
+                    assunto='X'
+                else:
+
+                    try:
+                        #assunto=summarize(textoTratado)
+                        #assunto=extrairAssunto_LLM(textoTratado)
+                        #assunto=limitar_string(extrairAssunto_LLM(textoTratado),100000)
+                        assunto=limitar_string(extrairAssunto_LLM(textoTratado),30000)
+                    except Exception as e:
+                        assunto='X ERRO API'
+                        print(f"Erro ao listar pastas: {e}")
+
+               
+               
+                #print(textoBRUTO)
+                #print('##########')
+                #print(textoTratado)
+                #print('##########')
+                #print('assunto ->')
+                #print(assunto)
+                #print('##########')
+                #print('')
+                #print('')
+                           
+            return assunto
+        except Exception as e:
+            print(f"Erro ao listar pastas: {e}")
+            return assunto
+   
+    else:
+        return lista[-1]
+
+
+
+def acharDescricao_PLUS(lista):
+
+    assunto = 'X'
+
+    if lista[-1]=='' or pd.isna(lista[-1]) or lista[-1]=='X ERRO API':
+   
+        try:
+
+            if lista[1]!="['18332988']":
+
+                processo = lista[0]
+                listaSEIs = ast.literal_eval(lista[1])
+                listaSEIs = [valor for valor in listaSEIs if valor not in (None, '')]
+                #print(processo)
+                #print(listaSEIs)
+
+                processoSohNumeros = processo.replace('-','').replace('/','').replace('.','')
+               
+                textoBRUTO=''
+
+                for s in range(len(listaSEIs)):
+                    if listaSEIs[s]!='':
+                        pasta=processoSohNumeros+'_'+listaSEIs[s]
+                        pastaComCaminho = pastaDownloadsDOCparaNome+'/'+pasta
+                       
+                        #listaArquivos_pdf = [arquivo for arquivo in os.listdir(pastaComCaminho) if arquivo.lower().endswith('.pdf')]
+                        listaArquivos_pdf=[]
+                        try:
+                            listaArquivos_pdf = [arquivo for arquivo in os.listdir(pastaComCaminho) if arquivo.lower().endswith('.pdf')]
+                        except:
+                            a=1
+
+
+                        for f in range(len(listaArquivos_pdf)):
+                            #object = PdfReader.PdfFileReader(pastaComCaminho+'/'+listaArquivos_pdf[f])
+                            #NumPages = object.getNumPages()
+
+                            textoBRUTO = textoBRUTO+extrair_texto_pdf(pastaComCaminho+'/'+listaArquivos_pdf[f])
+                           
+                            """ print('')
+                            print('')
+                            print('')
+                            print('################################################')
+                            print(' arquivo {} //// ->> páginas'.format(pastaComCaminho+'/'+listaArquivos_pdf[f]))
+                            extrair_texto_pdf(pastaComCaminho+'/'+listaArquivos_pdf[f]) """
+
+                            """ PageObj = object.getPage(0)
+                            Text = PageObj.extractText()
+
+                            Text = Text.replace('\n',' ')
+                            Text = Text.replace('       ',' ')
+                            Text = Text.replace('      ',' ')
+                            Text = Text.replace('     ',' ')
+                            Text = Text.replace('    ',' ')
+                            Text = Text.replace('   ',' ')
+                            Text = Text.replace('  ',' ')
+
+                            print(Text) """
+
+
+
+                           
+                        """ abrirPDF
+
+                        object = PyPDF2.PdfFileReader(pasta+'/'+df['listaArquivo'].loc[k])
+                        #pegar numero de páginas
+                        #NumPages = object.getNumPages()
+                        PageObj = object.getPage(0)
+                        Text = PageObj.extractText()
+
+                        Text = Text.replace('\n',' ')
+                        Text = Text.replace('       ',' ')
+                        Text = Text.replace('      ',' ')
+                        Text = Text.replace('     ',' ')
+                        Text = Text.replace('    ',' ')
+                        Text = Text.replace('   ',' ')
+                        Text = Text.replace('  ',' ') """
+               
+                #print(textoBRUTO)
+
+                textoTratado = textoBRUTO
+
+                textoTratado = substituir_pontosDeCondiconantesPorAsterisco(textoTratado)
+
+           
+
+                textoTratado = textoTratado.replace('\n\n','.')
+                textoTratado = textoTratado.replace('\n',' ')
+                textoTratado = textoTratado.replace('Ilma',' ')
+                textoTratado = textoTratado.replace('Ilmo',' ')
+                textoTratado = textoTratado.replace('Sra',' ')
+                textoTratado = textoTratado.replace('Sr',' ')
+                textoTratado = textoTratado.replace('Sr',' ')
+                textoTratado = textoTratado.replace('Rio de Janeiro – RJ','.')
+                textoTratado = textoTratado.replace('Rio de Janeiro, RJ','.')
+                textoTratado = textoTratado.replace(' Assunto:','. Assunto:')
+                textoTratado = textoTratado.replace(' Assunto','. Assunto:')
+
+                # Expressão regular para identificar CEPs
+                padrao_cep = re.compile(r'\b\d{5}-\d{3}\b')
+                textoTratado = padrao_cep.sub('.', textoTratado)
+
+
+                textoTratado = textoTratado.replace('       ',' ')
+                textoTratado = textoTratado.replace('      ',' ')
+                textoTratado = textoTratado.replace('     ',' ')
+                textoTratado = textoTratado.replace('    ',' ')
+                textoTratado = textoTratado.replace('   ',' ')
+                textoTratado = textoTratado.replace('  ',' ')
+
+                listaFrases = textoTratado.split('.')
+
+                #print('listaFrases')
+                #print(listaFrases)
+                # Convertendo todos os elementos para minúsculas
+                lista_minuscula = [item.lower() for item in listaFrases]
+
+               
+                assunto='X'
+
+                """ for ass in range(len(listaFrases)):
+                    if 'assunto' in lista_minuscula[ass]:
+                        #print('####### Assunto PRINCIPAL -> ',listaFrases[ass])
+                        assunto=assunto+listaFrases[ass]+' // '
+
+
+               
+               
+                achados = 0
+                for ass in range(len(listaFrases)):
+                   
+                    for pot in range(len(listaPotenciaisAssuntos)):
+
+                        if listaPotenciaisAssuntos[pot] in lista_minuscula[ass] and achados<2:
+                            #print('####### Assuntos agregadores -> ',listaFrases[ass])
+                            achados = achados+1
+                            if achados==2:
+                                assunto=assunto+listaFrases[ass]
+                            else:
+                                assunto=assunto+listaFrases[ass]+' // ' """
+               
+
+                if textoTratado=='' or len(textoTratado)==0:
+
+                    assunto ='X'
+                else:
+
+                    try:
+                        #assunto=summarize(textoTratado)
+                        #assunto=extrair_DESCRICAO_LLM(textoTratado)
+                        assunto2=extrair_DESCRICAO_LLM(textoTratado)
+                        #assunto=limitar_string(extrair_DESCRICAO_LLM(textoTratado),100000)
+                        assunto=limitar_string(assunto2,30000)
+                    except Exception as e:
+                        assunto='X ERRO API'
+                        print(f"Erro ao listar pastas: {e}")
+
+               
+               
+                #print(textoBRUTO)
+                #print('##########')
+                #print(textoTratado)
+                #print('##########')
+                #print('assunto ->')
+                #print(assunto)
+                #print('##########')
+                #print('')
+                #print('')
+                           
+            return assunto
+        except Exception as e:
+            print(f"Erro ao listar pastas: {e}")
+            return assunto
+   
+    else:
+        return lista[-1]
+
+
+
+
+
+
+def acharRotulos(lista):
+
+   
+    dicionarioRotulos={}
+
+   
+
+    if lista[-1]=='' or pd.isna(lista[-1]):
+
+        try:
+
+            if lista[1]!="['18332988']":
+
+                processo = lista[0]
+                listaSEIs = ast.literal_eval(lista[1])
+
+                processoSohNumeros = processo.replace('-','').replace('/','').replace('.','')
+               
+                textoBRUTO=''
+
+                for s in range(len(listaSEIs)):
+                    if listaSEIs[s]!='':
+                        pasta=processoSohNumeros+'_'+listaSEIs[s]
+                        pastaComCaminho = pastaDownloadsDOCparaNome+'/'+pasta
+                       
+                        listaArquivos_pdf = [arquivo for arquivo in os.listdir(pastaComCaminho) if arquivo.lower().endswith('.pdf')]
+
+                        for f in range(len(listaArquivos_pdf)):
+                            #object = PdfReader.PdfFileReader(pastaComCaminho+'/'+listaArquivos_pdf[f])
+                            #NumPages = object.getNumPages()
+
+                            textoBRUTO = textoBRUTO+extrair_texto_pdf(pastaComCaminho+'/'+listaArquivos_pdf[f])
+                           
+                            """ print('')
+                            print('')
+                            print('')
+                            print('################################################')
+                            print(' arquivo {} //// ->> páginas'.format(pastaComCaminho+'/'+listaArquivos_pdf[f]))
+                            extrair_texto_pdf(pastaComCaminho+'/'+listaArquivos_pdf[f]) """
+
+                            """ PageObj = object.getPage(0)
+                            Text = PageObj.extractText()
+
+                            Text = Text.replace('\n',' ')
+                            Text = Text.replace('       ',' ')
+                            Text = Text.replace('      ',' ')
+                            Text = Text.replace('     ',' ')
+                            Text = Text.replace('    ',' ')
+                            Text = Text.replace('   ',' ')
+                            Text = Text.replace('  ',' ')
+
+                            print(Text) """
+
+
+
+                           
+                        """ abrirPDF
+
+                        object = PyPDF2.PdfFileReader(pasta+'/'+df['listaArquivo'].loc[k])
+                        #pegar numero de páginas
+                        #NumPages = object.getNumPages()
+                        PageObj = object.getPage(0)
+                        Text = PageObj.extractText()
+
+                        Text = Text.replace('\n',' ')
+                        Text = Text.replace('       ',' ')
+                        Text = Text.replace('      ',' ')
+                        Text = Text.replace('     ',' ')
+                        Text = Text.replace('    ',' ')
+                        Text = Text.replace('   ',' ')
+                        Text = Text.replace('  ',' ') """
+               
+                print(textoBRUTO)
+
+                textoTratado = textoBRUTO
+
+                textoTratado = substituir_pontosDeCondiconantesPorAsterisco(textoTratado)
+
+           
+
+                textoTratado = textoTratado.replace('\n\n','.')
+                textoTratado = textoTratado.replace('\n',' ')
+                textoTratado = textoTratado.replace('Ilma',' ')
+                textoTratado = textoTratado.replace('Ilmo',' ')
+                textoTratado = textoTratado.replace('Sra',' ')
+                textoTratado = textoTratado.replace('Sr',' ')
+
+                # Expressão regular para identificar CEPs
+                padrao_cep = re.compile(r'\b\d{5}-\d{3}\b')
+                textoTratado = padrao_cep.sub('.', textoTratado)
+
+
+                textoTratado = textoTratado.replace('       ',' ')
+                textoTratado = textoTratado.replace('      ',' ')
+                textoTratado = textoTratado.replace('     ',' ')
+                textoTratado = textoTratado.replace('    ',' ')
+                textoTratado = textoTratado.replace('   ',' ')
+                textoTratado = textoTratado.replace('  ',' ')
+
+                listaFrases = textoTratado.split('.')
+
+                dicionarioRotulos={
+                "category1": ('Bacia de Santos'.lower() in textoTratado.lower()),
+                "category2": ('BW'.lower() in textoTratado.lower()),
+                "category3": ( (' PEVO '.lower() in textoTratado.lower()) or (' CGEMA '.lower() in textoTratado.lower()) or (' emergência '.lower() in textoTratado.lower()) or (' vazamento '.lower() in textoTratado.lower())),
+                "category4": ('Bacia de Campos'.lower() in textoTratado.lower()),
+                "category5": ('Rota'.lower() in textoTratado.lower()),
+                "category6": ('PDI'.lower() in textoTratado.lower()),
+                "category7": (('Socioeconomia'.lower() in textoTratado.lower()) or ('PMIS'.lower() in textoTratado.lower()) or ('PMIC'.lower() in textoTratado.lower()) or ('pescador'.lower() in textoTratado.lower()) or ('PARMIS'.lower() in textoTratado.lower()) or (' social '.lower() in textoTratado.lower()) or (' PMTE '.lower() in textoTratado.lower()) or (' PMTA '.lower() in textoTratado.lower())  or (' PMIR '.lower() in textoTratado.lower() )  or (' PMAIS '.lower() in textoTratado.lower() )  or (' PMCS '.lower() in textoTratado.lower() ) or (' PEA '.lower() in textoTratado.lower() )  or (' PEAT '.lower() in textoTratado.lower() )   ),
+                "category8": ('PMP'.lower() in textoTratado.lower()),
+                "category9": ('Trident'.lower() in textoTratado.lower()),
+                "category10": ('Perenco'.lower() in textoTratado.lower()),
+                "category11": ('Enauta'.lower() in textoTratado.lower()),
+                "category12": ('SEAL'.lower() in textoTratado.lower()),
+                "category13": ('Karoon'.lower() in textoTratado.lower()),
+                "category14": ('Petrorio'.lower() in textoTratado.lower()),
+                "category15": ('Equinor'.lower() in textoTratado.lower()),
+                "category16": ('3R'.lower() in textoTratado.lower()),
+                "category17": ('Petrobras'.lower() in textoTratado.lower()),
+                "category18": ('RNCE'.lower() in textoTratado.lower()),
+                "category19": ('Projetos Continuados'.lower() in textoTratado.lower()),
+                "category20": ('Shell'.lower() in textoTratado.lower()),
+                "category21": ('Anuências'.lower() in textoTratado.lower()),
+                "category22": (' ABIO '.lower() in textoTratado.lower()),
+                "category23": ('Total'.lower() in textoTratado.lower()),
+                "category24": ('Ministério Público'.lower() in textoTratado.lower()),
+                "category25": (('PPCEX'.lower() in textoTratado.lower()) or ('coral sol'.lower() in textoTratado.lower()) or ('coral-sol'.lower() in textoTratado.lower())  or ('Espécie Exótica Invasora'.lower() in textoTratado.lower()) or (' Exótica '.lower() in textoTratado.lower())  or (' Tubastraea '.lower() in textoTratado.lower()) or ('tagusensis'.lower() in textoTratado.lower()) or ('coccinea'.lower() in textoTratado.lower())   )
+                }
+
+                print(dicionarioRotulos)
+
+           
+                           
+            return dicionarioRotulos
+        except Exception as e:
+            print(f"Erro ao listar pastas: {e}")
+            return dicionarioRotulos
+   
+    else:
+        return lista[-1]
+
+
+
+
+
+def acharAssuntosDeCadaRECIBOaPartirDe2024_INCREMENTAL():
+
+    """ with open(pastafinal + '/' + 'tudaoRECIBOS_MONITORAR_comAssunto_LLM.csv', 'r', encoding='utf-8', errors='replace') as infile:
+        content = infile.read().replace('\x00', '')  # Remove NULL bytes
+    with open(pastafinal + '/' + 'tudaoRECIBOS_MONITORAR_comAssunto_LLM.csv', 'w', encoding='utf-8') as outfile:
+        outfile.write(content)
+   
+    df1 = pd.read_csv(filepath_or_buffer=pastafinal+'/'+'tudaoRECIBOS_MONITORAR.csv',engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')
+    print('df1.columns -> ')
+    print(df1.columns)
+
+    print('')
+    print('#############')
+    print('')
+   
+   
+    df2 = pd.read_csv(filepath_or_buffer=pastafinal+'/'+'tudaoRECIBOS_MONITORAR_comAssunto_LLM.csv',engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')    
+    print('df2.columns -> ')
+    print(df2.columns)
+
+    if 'descricao_LLM' in df2.columns.to_list():
+        print('descricao_LLM está em df2')
+    else:
+        print('descricao_LLM NAO está em df2')
+        df2['descricao_LLM']=''
+
+    print('df2.columns -> ')
+    print(df2.columns)
+    #time.sleep(1000)
+
+
+
+
+
+   
+
+    # Etapa 1: Identificar as colunas em comum
+    common_columns = df1.columns.intersection(df2.columns)
+
+    # Etapa 2: Combinar os DataFrames baseando-se nas colunas em comum
+    df1_common = df1[common_columns]
+    df2_common = df2[common_columns]
+
+    # Etapa 3: Unir os DataFrames e remover duplicatas
+    union_common = pd.concat([df1_common, df2_common]).drop_duplicates()
+
+    # Etapa 4: Adicionar as colunas adicionais do df2
+    df = pd.merge(union_common, df2, how='left', on=list(common_columns))
+
+    #print(df)
+
+    df.to_csv(pastafinal+'/'+'tudaoRECIBOS_MONITORAR_comAssunto_LLM.csv',encoding='UTF8',sep=';') """
+
+    """ # Remover bytes nulos do arquivo mais recente
+    with open(pastafinal + '/' + 'tudaoRECIBOS_MONITORAR_comAssunto_LLM.csv', 'r', encoding='utf-8', errors='replace') as infile:
+        content = infile.read().replace('\x00', '')  # Remove NULL bytes
+    with open(pastafinal + '/' + 'tudaoRECIBOS_MONITORAR_comAssunto_LLM.csv', 'w', encoding='utf-8') as outfile:
+        outfile.write(content) """
+
+    """ # Ler os DataFrames
+    df1 = pd.read_csv(filepath_or_buffer=pastafinal + '/' + 'tudaoRECIBOS_MONITORAR.csv',
+                    engine='python', encoding='UTF-8', index_col=0, delimiter=';') """
+    df1a = pd.read_csv(filepath_or_buffer=pastafinal + '/' + 'tudaoRECIBOS_MONITORAR.csv',
+                    engine='python', encoding='UTF-8', index_col=0, delimiter=';')
+    """ print('df1.columns -> ')
+    print(df1.columns)
+    print('\n#############\n') """
+
+    """ df2 = pd.read_csv(filepath_or_buffer=pastafinal + '/' + 'tudaoRECIBOS_MONITORAR_comAssunto_LLM.csv',
+                    engine='python', encoding='UTF-8', index_col=0, delimiter=';') """
+    #df2a = pd.read_csv(filepath_or_buffer=pastafinal + '/' + 'tudaoRECIBOS_MONITORAR_comAssunto_LLM.csv', engine='python', encoding='UTF-8', index_col=0, delimiter=';')
+    df2a = pd.read_csv(filepath_or_buffer=pastafinal + '/' + 'tudaoRECIBOS_MONITORAR_comAssunto_LLM.csv', engine='c', encoding='UTF-8', index_col=0, delimiter=';')
+    #df2a = pd.read_csv(filepath_or_buffer=pastafinal + '/' + 'tudaoRECIBOS_MONITORAR_comAssunto_LLM.csv', quoting=csv.QUOTE_NONE, engine='python', encoding='UTF-8', index_col=0, delimiter=';')
+    #df2a = pd.read_csv(filepath_or_buffer=pastafinal + '/' + 'tudaoRECIBOS_MONITORAR_comAssunto_LLM.csv', quoting=csv.QUOTE_NONE, engine='python', encoding='UTF-8', index_col=0,error_bad_lines=False,delimiter=';')
+   
+    """ print('df2.columns -> ')
+    print(df2.columns) """
+
+    """ # Garantir que a coluna 'descricao_LLM' exista em df2
+    if 'descricao_LLM' in df2.columns.to_list():
+        print('descricao_LLM está em df2')
+    else:
+        print('descricao_LLM NAO está em df2')
+        df2['descricao_LLM'] = '' """
+   
+    if 'descricao_LLM' in df2a.columns.to_list():
+        print('descricao_LLM está em df2')
+    else:
+        print('descricao_LLM NAO está em df2')
+        df2a['descricao_LLM'] = ''
+
+    """ print('df2.columns -> ')
+    print(df2.columns) """
+
+
+   
+    """ # Verificar colunas duplicadas (além de 'span') e renomear as de df1 para evitar repetição
+    common_columns = set(df1.columns).intersection(df2.columns) - {'span'}
+    df1 = df1.rename(columns={col: f"{col}_df1" for col in common_columns})
+
+    # Identificar colunas comuns (exceto 'span') para evitar duplicação
+    common_columns = set(df1.columns).intersection(df2.columns) - {'span'}
+    df1 = df1.rename(columns={col: f"{col}_df1" for col in common_columns})
+
+    # Unir os DataFrames com base na coluna 'span', mantendo as informações originais de df2
+    #df_merged = pd.merge(df2, df1, on='span', how='left')  # 'left' para preservar df2
+    # Unir os DataFrames com base na coluna 'span', usando full outer join
+    df_merged = pd.merge(df1, df2, on='span', how='outer')
+   
+
+
+    # Unir os DataFrames com base na coluna 'span'
+    #df_merged = pd.merge(df2, df1, on='span', how='left')  # Usamos 'left' para manter todas as colunas de df2
+    # Remover duplicatas, garantindo unicidade na coluna 'span'
+    #df_merged = df_merged.drop_duplicates(subset='span', keep='first')
+    df_merged = df_merged.drop_duplicates(subset='span', keep='last')
+    # Excluir as colunas que terminam com "_df1"
+    df_merged = df_merged.loc[:, ~df_merged.columns.str.endswith('_df1')]
+    #df_merged.to_csv(pastafinal + '/' + 'tudaoRECIBOS_MONITORAR_comAssunto_LLM_merged2.csv', encoding='UTF-8', sep=';')
+    #df_merged.to_csv(pastafinal + '/' + 'tudaoRECIBOS_MONITORAR_comAssunto_LLM_merged.csv', encoding='UTF-8', sep=';')
+    df_merged.to_csv(pastafinal + '/' + 'tudaoRECIBOS_MONITORAR_comAssunto_LLM.csv', encoding='UTF-8', sep=';') """
+
+    # Concatenar os DataFrames
+    df_combined = pd.concat([df1a, df2a], axis=0, ignore_index=True)
+
+    # Remover duplicatas com base na coluna 'span', priorizando os dados do df2
+    df_combined = df_combined.drop_duplicates(subset='span', keep='last')
+    #df_combined = df_combined.loc[:, ~df_combined.columns.str.endswith('_df1')]
+    #df_combined.to_csv(pastafinal + '/' + 'tudaoRECIBOS_MONITORAR_comAssunto_LLM_CONCAT.csv', encoding='UTF-8', sep=';')
+   
+    limite = 30000
+    df_combined = df_combined.applymap(lambda x: x[:limite] if isinstance(x, str) else x)
+    df_combined.to_csv(pastafinal + '/' + 'tudaoRECIBOS_MONITORAR_comAssunto_LLM.csv', encoding='UTF-8', sep=';')
+       
+
+
+    """ # Identificar as colunas em comum entre os dois DataFrames
+    common_columns = df1.columns.intersection(df2.columns)
+
+    # Manter somente as colunas em comum nos dois DataFrames
+    df1_common = df1[common_columns]
+    df2_common = df2[common_columns]
+
+    # Adicionar uma coluna auxiliar para indicar a origem dos dados
+    df1_common['origem'] = 'df1'
+    df2_common['origem'] = 'df2'
+
+    # Concatenar os DataFrames e remover duplicatas priorizando registros do df2
+    union_common = pd.concat([df1_common, df2_common])
+    union_common = union_common.sort_values(by='origem', ascending=False).drop_duplicates(subset=common_columns, keep='first')
+
+    # Remover a coluna auxiliar após priorizar os dados de df2
+    union_common = union_common.drop(columns=['origem'])
+
+    # Mesclar os DataFrames para preservar colunas adicionais do df2
+    df = pd.merge(union_common, df2, how='left', on=list(common_columns))
+
+
+
+    #df.reset_index(inplace=True)
+    # Salvar o resultado no arquivo principal
+    df.to_csv(pastafinal + '/' + 'tudaoRECIBOS_MONITORAR_comAssunto_LLM.csv', encoding='UTF-8', sep=';') """
+
+    # Comparando os dois DataFrames
+    # A função .compare() foi introduzida no pandas 1.1.0
+    """ dfinicial=pd.read_csv(filepath_or_buffer=pastafinal + '/' + 'tudaoRECIBOS_MONITORAR_comAssunto_LLM_CONCAT.csv',
+                    engine='python', encoding='UTF-8', index_col=0, delimiter=';')
+    diff = df_combined.compare(dfinicial)
+
+    # Imprimir as diferenças
+    if not diff.empty:
+        print("Diferenças encontradas entre os dataframes:")
+        print(diff)
+    else:
+        print("#################################")
+        print("Os dataframes são idênticos.")
+        print("#################################") """
+
+
+    #time.sleep(1000)
+
+
+   
+   
+   
+    df=df_combined
+    time.sleep(3)
+   
+   
+   
+    #listaProcesso = df['numeroDoProcesso'].values.tolist()
+    #listaPotenciaisSEIsComAssunto = df['SEIs'].values.tolist()
+    #listaSEIacharAssunto = df['numSei'].values.tolist()
+   
+    #processobruto = '02001.003413/95-88'
+    #listaSEIs = ['', '17995249', '17995250']
+    #processoSohNumeros = processobruto.replace('-','').replace('/','').replace('.','')
+
+    df=df[df['SEIs']!="['18332988']"] # dando erro esse numero SEI
+    df=df[df['SEIs']!="['18913055']"] # dando erro esse numero SEI
+
+    #df['assunto']=df[['numprocesso','SEIs']].apply(acharAssunto,axis=1)
+    tqdm.pandas(desc='acharAssunto raiz ..')
+    df['assunto']=df[['numprocesso','SEIs','assunto']].progress_apply(acharAssunto,axis=1)
+
+    limite = 30000
+    df = df.applymap(lambda x: x[:limite] if isinstance(x, str) else x)
+       
+
+    df.to_csv(pastafinal+'/'+'tudaoRECIBOS_MONITORAR_comAssunto_LLM.csv',encoding='UTF8',sep=';',escapechar='\\')
+   
+    try:
+        tqdm.pandas(desc='acharAssunto_PLUS ..')
+        #df['assunto_PLUS_LLM']=df[['numprocesso','SEIs','assunto_PLUS_LLM']].apply(acharAssunto_PLUS,axis=1)
+        df['assunto_PLUS_LLM']=df[['numprocesso','SEIs','assunto_PLUS_LLM']].progress_apply(acharAssunto_PLUS,axis=1)
+    except:
+        print('Nao achou assunto por LLM')
+
+   
+    """ tqdm.pandas(desc='acharAssunto_PLUS ..')
+    #df['assunto_PLUS_LLM']=df[['numprocesso','SEIs','assunto_PLUS_LLM']].apply(acharAssunto_PLUS,axis=1)
+    df['assunto_PLUS_LLM']=df[['numprocesso','SEIs','assunto_PLUS_LLM']].progress_apply(acharAssunto_PLUS,axis=1) """
+
+   
+    limite = 30000
+    df = df.applymap(lambda x: x[:limite] if isinstance(x, str) else x)
+
+    df.to_csv(pastafinal+'/'+'tudaoRECIBOS_MONITORAR_comAssunto_LLM.csv',encoding='UTF8',sep=';',escapechar='\\')
+   
+    try:
+        tqdm.pandas(desc='acharDescricao_PLUS ..')
+        #df['descricao_LLM']=df[['numprocesso','SEIs']].apply(acharDescricao_PLUS,axis=1)
+        #df['descricao_LLM']=df[['numprocesso','SEIs','descricao_LLM']].apply(acharDescricao_PLUS,axis=1)
+        df['descricao_LLM']=df[['numprocesso','SEIs','descricao_LLM']].progress_apply(acharDescricao_PLUS,axis=1)
+    except:
+        print('Nao achou descricao por LLM')
+   
+    tqdm.pandas(desc='acharRotulos ...')
+    df['rotulos']=df[['numprocesso','SEIs','rotulos']].progress_apply(acharRotulos,axis=1)
+
+    #df.to_csv(pastafinal+'/'+'tudaoRECIBOS_MONITORAR_comAssunto.csv',encoding='UTF8',sep=';')
+    #df.to_csv(pastafinal+'/'+'tudaoRECIBOS_MONITORAR_comAssunto.csv',encoding='UTF8',sep=';')
+   
+    limite = 30000
+    df = df.applymap(lambda x: x[:limite] if isinstance(x, str) else x)
+    df.to_csv(pastafinal+'/'+'tudaoRECIBOS_MONITORAR_comAssunto_LLM.csv',encoding='UTF8',sep=';',escapechar='\\')
+
+
+
+
+
+def acharAssuntosDeCadaRECIBOaPartirDe2024():
+   
+    df = pd.read_csv(filepath_or_buffer=pastafinal+'/'+'tudaoRECIBOS_MONITORAR.csv',engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')    
+
+    print(df.columns)
+
+    listaProcesso = df['numeroDoProcesso'].values.tolist()
+    listaPotenciaisSEIsComAssunto = df['SEIs'].values.tolist()
+    listaSEIacharAssunto = df['numSei'].values.tolist()
+   
+    #processobruto = '02001.003413/95-88'
+    #listaSEIs = ['', '17995249', '17995250']
+    #processoSohNumeros = processobruto.replace('-','').replace('/','').replace('.','')
+
+    df=df[df['SEIs']!="['18332988']"] # dando erro esse numero SEI
+    df=df[df['SEIs']!="['18913055']"] # dando erro esse numero SEI
+
+    #df['assunto']=df[['numprocesso','SEIs']].apply(acharAssunto,axis=1)
+    df['assunto']=df[['numprocesso','SEIs']].progress_apply(acharAssunto,axis=1)
+   
+    try:
+        df['assunto_PLUS_LLM']=df[['numprocesso','SEIs']].apply(acharAssunto_PLUS,axis=1)
+    except:
+        print('Nao achou assunto por Large Language Models')
+   
+    try:
+        df['descricao_LLM']=df[['numprocesso','SEIs']].apply(acharAssunto_PLUS,axis=1)
+    except:
+        print('Nao achou assunto por Large Language Models')
+   
+   
+    df['rotulos']=df[['numprocesso','SEIs']].progress_apply(acharRotulos,axis=1)
+
+    df.to_csv(pastafinal+'/'+'tudaoRECIBOS_MONITORAR_comAssunto.csv',encoding='UTF8',sep=';')
+
+   
+   
+
+   
+##### FUNCIONANDO
+
+import requests
+import msal
+import atexit
+import os.path
+
+## BAIXAR LISTA DE USUARIOS NO AZURE
+# https://portal.azure.com/#view/Microsoft_AAD_UsersAndTenants/UserManagementMenuBlade/~/AllUsers
+
+
+TENANT_ID = '6ae3f5e7-5419-42a7-8075-8c1490c72b25' #ID DO IBAMA
+#CLIENT_ID = 'ac07b286-1359-4d07-922d-9dcf43dc274d' #ID DO APLICATIVO CRIADO POR Administrador criado aplicativo no AZURE ->> cgmac-automacoes
+#CLIENT_ID = '2aaed744-fbd4-495c-99b9-38ddb715990e' #ID DO APLICATIVO CRIADO POR Cenima criado aplicativo no AZURE ->> cgmac-automacoes
+CLIENT_ID = '5ea46be6-7af4-4e80-94c2-bcaf0c3b0e97' # ID Obi_teste
+SHAREPOINT_HOST_NAME = 'ibamagovbr.sharepoint.com'
+
+AUTHORITY = 'https://login.microsoftonline.com/' + TENANT_ID
+ENDPOINT = 'https://graph.microsoft.com/v1.0'
+
+SCOPES = [
+    'Files.ReadWrite.All',
+    'Sites.ReadWrite.All',
+    'User.Read',
+    'User.ReadBasic.All',
+    'Tasks.ReadWrite'
+]
+
+
+def rodarInicial():
+   
+    global cache
+
+    cache = msal.SerializableTokenCache()
+
+    if os.path.exists('token_cache.bin'):
+        cache.deserialize(open('token_cache.bin', 'r').read())
+
+    atexit.register(lambda: open('token_cache.bin', 'w').write(cache.serialize()) if cache.has_state_changed else None)
+
+    global app
+    app = msal.PublicClientApplication(CLIENT_ID, authority=AUTHORITY, token_cache=cache)
+   
+    global accounts
+    accounts = app.get_accounts()
+
+    global result
+    result = None
+    if len(accounts) > 0:
+        result = app.acquire_token_silent(SCOPES, account=accounts[0])
+
+    global tk
+    tk=''
+    if result is None:
+        flow = app.initiate_device_flow(scopes=SCOPES)
+        if 'user_code' not in flow:
+            raise Exception('Failed to create device flow')
+
+        #print(flow['message'])
+
+        result = app.acquire_token_by_device_flow(flow)
+        tk = result['access_token']
+        #print(result)
+
+
+    if 'access_token' in result:
+        tk=result['access_token']
+        result = requests.get(f'{ENDPOINT}/me', headers={'Authorization': 'Bearer ' + result['access_token']})
+        result.raise_for_status()
+        #print(result)
+        #print('')
+        #print('')
+        #print(result.json())
+
+        #print('########################')
+        #print('tk')
+        #print(tk)
+        #print('########################')
+
+    else:
+        raise Exception('no access token in result')
+
+import requests
+#from sympy import content
+   
+
+
+
+
+def abrirDemandaPlanner():
+
+    df = pd.read_csv(filepath_or_buffer=pastafinal+'/'+'tudaoRECIBOS_MONITORAR_comAssunto.csv',engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')    
+
+    print(df.info())
+    print(df.columns)
+
+    lista_numSei = df['numSei'].values.tolist()
+    lista_rotulo = df['rotulo'].values.tolist()
+    lista_assunto = df['assunto'].values.tolist()
+    lista_protocolos = df['protocolos'].values.tolist()
+    lista_SEIs = df['SEIs'].values.tolist()
+    lista_numprocesso = df['numprocesso'].values.tolist()
+    lista_rotulos = df['rotulos'].values.tolist()
+
+    listaTAREFA_SEIRecibo=[]
+    listaTAREFA_processo=[]
+    listaTAREFA_assuntoFinal=[]
+    listaTAREFA_rotuloProcesso=[]
+    listaTAREFA_rotuloTarefa=[]
+    listaTAREFA_rotuloProtocoloNomes=[]
+    listaTAREFA_rotuloProtocoloSEIs=[]
+
+    dfTarefasJahCriadas = pd.read_csv(filepath_or_buffer=pastafinal+'/'+'demandasCRIADAS_PLANNER_CONSOLIDADO.csv',engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')    
+    listaSEIsTarefasJahCriadasPlanner = dfTarefasJahCriadas['seiRecibo'].values.tolist()
+
+
+
+    for d in range(len(lista_rotulo)):
+       
+        if lista_numSei[d] not in listaSEIsTarefasJahCriadasPlanner:
+
+
+            try:
+
+           
+                try:
+                    print('')
+                    print('')
+                    print('')
+                    print('##################################')
+                    print('lista_rotulos')
+                    print(lista_rotulos[d])
+                    dicionarioRotulos = ast.literal_eval(lista_rotulos[d])
+                    print('dicionarioRotulos')
+                    print(dicionarioRotulos)
+                    print('type(dicionarioRotulos)')
+                    print(type(dicionarioRotulos))
+
+                    objetoDicionario = {
+                        "category1": dicionarioRotulos['category1'],
+                        "category2": dicionarioRotulos['category2'],
+                        "category3": dicionarioRotulos['category3'],
+                        "category4": dicionarioRotulos['category4'],
+                        "category5": dicionarioRotulos['category5'],
+                        "category6": dicionarioRotulos['category6'],
+                        "category7": dicionarioRotulos['category7'],
+                        "category8": dicionarioRotulos['category8'],
+                        "category9": dicionarioRotulos['category9'],
+                        "category10": dicionarioRotulos['category10'],
+                        "category11": dicionarioRotulos['category11'],
+                        "category12": dicionarioRotulos['category12'],
+                        "category13": dicionarioRotulos['category13'],
+                        "category14": dicionarioRotulos['category14'],
+                        "category15": dicionarioRotulos['category15'],
+                        "category16": dicionarioRotulos['category16'],
+                        "category17": dicionarioRotulos['category17'],
+                        "category18": dicionarioRotulos['category18'],
+                        "category19": dicionarioRotulos['category19'],
+                        "category20": dicionarioRotulos['category20'],
+                        "category21": dicionarioRotulos['category21'],
+                        "category22": dicionarioRotulos['category22'],
+                        "category23": dicionarioRotulos['category23'],
+                        "category24": dicionarioRotulos['category24'],
+                        "category25": dicionarioRotulos['category25']}
+
+
+                except Exception as e:
+                    print('erro -> ',e)
+                    objetoDicionario = {
+                    "category1": False,
+                    "category2": False,
+                    "category3": False,
+                    "category4": False,
+                    "category5": False,
+                    "category6": False,
+                    "category7": False,
+                    "category8": False,
+                    "category9": False,
+                    "category10": False,
+                    "category11": False,
+                    "category12": False,
+                    "category13": False,
+                    "category14": False,
+                    "category15": False,
+                    "category16": False,
+                    "category17": False,
+                    "category18": False,
+                    "category19": False,
+                    "category20": False,
+                    "category21": False,
+                    "category22": False,
+                    "category23": False,
+                    "category24": False,
+                    "category25": False}
+
+               
+                limite = len(str(lista_assunto[d]))
+                if len(str(lista_assunto[d]))>100:
+                    limite=100
+
+                titulo = str(lista_rotulo[d])+' - '+str(lista_assunto[d])[:limite]+' - DOCUMENTOS ('+str(lista_protocolos[d])+' // SEIs->'+str(lista_SEIs[d])+') PROCESSO -> '+str(lista_numprocesso[d])
+
+                if len(titulo)>255:
+                    if len(str(lista_rotulo[d]))>20:
+                        titulo = str(lista_assunto[d])[:80]+' - DOCUMENTOS ('+str(lista_protocolos[d])+' // SEIs->'+str(lista_SEIs[d])+') PROCESSO -> '+str(lista_numprocesso[d])
+
+                if len(titulo)>255:
+                    titulo = str(lista_rotulo[d])+' - '+str(lista_assunto[d])[:60]+' - DOCUMENTOS ('+str(lista_protocolos[d])+' // SEIs->'+str(lista_SEIs[d])+') PROCESSO -> '+str(lista_numprocesso[d])
+
+                if len(titulo)>255:
+                    titulo = str(lista_rotulo[d])+' - '+str(lista_assunto[d])[:50]+' - DOCUMENTOS ('+str(lista_protocolos[d])+' // SEIs->'+str(lista_SEIs[d])+') PROCESSO -> '+str(lista_numprocesso[d])
+
+                if len(titulo)>255:
+                    titulo = str(lista_rotulo[d])+' - '+str(lista_assunto[d])[:40]+' - DOCUMENTOS ('+str(lista_protocolos[d])+' // SEIs->'+str(lista_SEIs[d])+') PROCESSO -> '+str(lista_numprocesso[d])
+
+                if len(titulo)>255:
+                    titulo = str(lista_rotulo[d])+' - '+str(lista_assunto[d])[:40]+' - DOCUMENTOS ('+str(lista_protocolos[d])+' // SEIs->'+str(lista_SEIs[d])+') PROCESSO -> '+str(lista_numprocesso[d])
+
+                if len(titulo)>255:
+                    if len(str(lista_rotulo[d]))>20:
+                        if len(str(lista_rotulo[d]))>20:
+                            titulo = str(lista_assunto[d])[:60]+' - DOCUMENTOS ('+str(lista_protocolos[d])+' // SEIs->'+str(lista_SEIs[d])+') PROCESSO -> '+str(lista_numprocesso[d])
+
+
+                tarefa = {
+                "planId": plannerDaCoprod,
+                "bucketId": buketID_ObiDistribuir,
+                "title": titulo,
+                "assignments": {
+                    idPatricia:
+                    {"@odata.type": "#microsoft.graph.plannerAssignment",
+                    "orderHint": ' !'}},
+               
+                "appliedCategories": objetoDicionario,
+                }
+
+               
+               
+                #CRIANDO TAREFA
+                endCriar='https://graph.microsoft.com/v1.0/planner/tasks'
+
+                tarefaCriada = requests.post(endCriar,json=tarefa,headers={'Authorization': 'Bearer ' + tk})
+
+                print('')
+                print('')
+                print('tarefaCriada-->>')
+                print(tarefaCriada.json())
+                print(tarefaCriada)
+
+                print(tarefaCriada.status_code)
+                print(tarefaCriada.status_code)
+                print(type(tarefaCriada.status_code))
+
+                if tarefaCriada.status_code==201:
+                    listaTAREFA_SEIRecibo.append(lista_numSei[d])
+                    listaTAREFA_processo.append(lista_numprocesso[d])
+                    listaTAREFA_assuntoFinal.append(titulo)
+                    listaTAREFA_rotuloProcesso.append(lista_rotulo[d])
+                    listaTAREFA_rotuloTarefa.append(objetoDicionario)
+                    listaTAREFA_rotuloProtocoloNomes.append(lista_protocolos[d])
+                    listaTAREFA_rotuloProtocoloSEIs.append(lista_SEIs[d])
+           
+
+            except Exception as e:
+                print('erro -> ',e)
+   
+    df = pd.DataFrame({
+        'seiRecibo':listaTAREFA_SEIRecibo,
+        'processo':listaTAREFA_processo,
+        'assuntoTarefa':listaTAREFA_assuntoFinal,
+        'rotuloProcesso':listaTAREFA_rotuloProcesso,
+        'rotulosTarefa':listaTAREFA_rotuloTarefa,
+        'documentosProtocolodosNoReciboNOME':listaTAREFA_rotuloProtocoloNomes,
+        'documentosProtocolodosNoReciboSEIs':listaTAREFA_rotuloProtocoloSEIs
+    })
+
+    agora=datetime.today()
+    ano=agora.year
+    mes=agora.month
+    dia=agora.day
+    hora=agora.hour
+    minuto=agora.minute
+
+    df.to_csv(pastaTarefasCriadas+'/'+'{}_{:02d}_{:02d}__{:02d}h_{:02d}m_tarefasPlaner.csv'.format(ano,mes,dia,hora,minuto),encoding='UTF8',sep=';')
+
+
+
+
+
+
+
+   
+
+
+
+
+
+   
+
+
+   
+
+
+   
+def unificarTodasAsDemandasJahAbertas():
+    a=1
+    listaArquivosDemandasAbertas = listar_arquivos_csv(pastaTarefasCriadas)
+
+    df_concatenado=pd.DataFrame()
+
+    for t in tqdm(range(len(listaArquivosDemandasAbertas)),desc="..unificando tarefas criadas..", ncols=100,dynamic_ncols=False  ):
+       
+        df = pd.read_csv(filepath_or_buffer=pastaTarefasCriadas+'/'+listaArquivosDemandasAbertas[t],engine = 'python',encoding='UTF-8',index_col=0,delimiter=';')
+
+        df_concatenado = pd.concat([df_concatenado, df]).reset_index(drop=True)
+        df_concatenado['arquivoDemandaAberta']=listaArquivosDemandasAbertas[t]
+       
+        df_concatenado.reset_index(drop=True,inplace=True)
+       
+   
+    df_concatenado.to_csv(pastafinal+'/'+'demandasCRIADAS_PLANNER_CONSOLIDADO.csv',encoding='UTF8',sep=';')
+
+
+
+
+
+
+# FUNCOES SEQUENCIAIS PARA EXECUTAR O PROGRAMA
+if __name__ == '__main__':
+    print('####### INÍCIO WEBSCRAPPING SEI COPROD #######')
+   
+    #EXTRACAO INICIAL
+    print('iniciarExtracao')
+    iniciarExtracao()
+   
+
+    print('inicio tratarProcessosAbertos')
+    print('tratarProcessosAbertos')
+    tratarProcessosAbertos()
+    print('fim tratarProcessosAbertos')
+    print('monitorarProcessos')
+    monitorarProcessos()
+    driver.close()
+
+    #NONITORANDO ULTIMAS PASTAS VERIFICADAS - (economizar tempo para percorrer depois somente as pastas finais)
+    print('definirUltimaPastaAverificarDeCadaProcesso')
+    definirUltimaPastaAverificarDeCadaProcesso()
+   
+    #MONITORAR INCREMENTAL (somente ultimas pastas verificadas)
+    print('monitorarProcessosIncremental')
+    monitorarProcessosIncremental()
+   
+    #UNIFICAR O JAH MONITORADO COM O INCRMENTAL
+    print('unificarBrutoComIncremental')
+    unificarBrutoComIncremental()
+    print('juntarTodosArquivosDosProcessos')
+    juntarTodosArquivosDosProcessos()
+    print('unificarBrutoComIncrementalRECIBOS')
+    unificarBrutoComIncrementalRECIBOS()
+    print('juntarTodosArquivosDosRECIBOS')
+    juntarTodosArquivosDosRECIBOS()
+
+    # ACHAR ASSUNTOS A PARTIR DOS RECIBOS
+    print('baixarPDFsAindaNaoBaixadosQuePodemTerOsAssuntoaPartirDe2024')
+    baixarPDFsAindaNaoBaixadosQuePodemTerOsAssuntoaPartirDe2024()
+   
+    # RETIRAR DO ANTIGO LLM
+    #print('inicializarGlobal')
+    #inicializarGlobal()
+   
+    print('acharAssuntosDeCadaRECIBOaPartirDe2024_INCREMENTAL')
+    acharAssuntosDeCadaRECIBOaPartirDe2024_INCREMENTAL()
+
+
+
+
+
+    # PROGRMAMA 2
+    #DEMANDAS PLANNER
+    #rodarInicial()
+    #abrirDemandaPlanner()
+    #unificarTodasAsDemandasJahAbertas()
+
+
+
+
+
+
+
+
+
+
+   
+   
+
+
+
+   
+    fim=datetime.today()
+    duracao=fim-inicio
+
+
+    # Restaura as configurações padrão de avisos
+    warnings.resetwarnings()
+    print('####### FIM WEBSCRAPPING WEBSCRAPPING SEI COPROD #######',' inicio -> ', inicio.strftime('%H:%M:%S'),'  // fim-> ',fim.strftime('%H:%M:%S'),' //  ',  datetime.today().strftime('%H:%M:%S'),' , tarefa durou:',duracao)
+    print('')
+    print('')
