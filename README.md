@@ -23,6 +23,17 @@ Opcional para limitar lote:
 AGIL_MAX_PROCESSOS=5 AGIL_HEADLESS=1 python -u run.py
 ```
 
+## Configuração portátil de ambiente (.env)
+
+Para replicar em qualquer máquina:
+
+```bash
+cp .env.example .env
+```
+
+Edite o `.env` com seus valores (principalmente `AGIL_EMAIL_PASSWORD` com App Password do Gmail).
+O `run.py` carrega `.env`/`.env.local` automaticamente no início da execução.
+
 ## Checkpoint de execução
 
 O pipeline usa `data/checkpoint_execucao.json` para retomar de onde parou:

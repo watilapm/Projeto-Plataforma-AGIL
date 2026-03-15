@@ -153,6 +153,21 @@ def obter_processos():
     caminho_csv = resolver_csv_entrada()
     log(f"CSV de entrada selecionado: {caminho_csv}")
     processos = carregar_processos(caminho_csv)
+    processos_unicos = []
+    vistos = set()
+    repetidos = 0
+
+    for processo in processos:
+        chave = processo.get("numero_original") or processo.get("numero_processo")
+        if chave in vistos:
+            repetidos += 1
+            continue
+        vistos.add(chave)
+        processos_unicos.append(processo)
+
+    if repetidos:
+        log(f"{repetidos} processo(s) duplicado(s) removido(s) da fila.")
+    processos = processos_unicos
 
     limite = os.getenv("AGIL_MAX_PROCESSOS", "").strip()
     if limite:

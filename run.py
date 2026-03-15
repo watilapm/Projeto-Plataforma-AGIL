@@ -2,13 +2,17 @@
 
 import os
 import zipfile
+from datetime import datetime
+from time import monotonic
 
 from modules.classifier.classificador import ClassificadorEIA
+from modules.notifications.email_report import enviar_relatorio_execucao
 from modules.parser.extrator_texto import extrair_texto_e_paginas_pdf
 from modules.scraper.scraper_sei import ScraperSEI
 from modules.storage.checkpoint_execucao import CheckpointExecucao
 from modules.storage.gerenciador_arquivos import salvar_eia
 from modules.storage.registro_resultados import registrar_resultado
+from modules.utils.env_loader import carregar_env_arquivo
 from modules.utils.pipeline_helpers import (
     extrair_numero_sei,
     limpar_temporarios,
@@ -67,6 +71,43 @@ def documento_indica_eia_titulo(documento, nome_analise=""):
     return False, ""
 
 
+def documento_descartavel_pre_download(nome_documento: str):
+
+    nome = normalizar_texto_regra(nome_documento or "")
+    if not nome:
+        return False, ""
+
+    # Nunca descartar no pre-filtro se houver indicio direto de EIA/estudo ambiental.
+    if "eia" in nome or "estudo de impacto ambiental" in nome:
+        return False, ""
+    if "estudo" in nome and "ibama" in nome:
+        return False, ""
+
+    termos_descarte = [
+        "e-mail",
+        "email",
+        "parecer",
+        "despacho",
+        "oficio",
+        "minuta",
+        "solicitacao",
+        "solicitação",
+        "recibo eletronico",
+        "recibo eletrônico",
+        "comprovante",
+        "certidao",
+        "certidão",
+        "cnh",
+        "cpf",
+        "cnpj",
+    ]
+    for termo in termos_descarte:
+        if termo in nome:
+            return True, termo
+
+    return False, ""
+
+
 def processar_documento(scraper, classificador, processo, documento, documento_idx=0, total_documentos=0):
 
     nome_documento = documento["nome"]
@@ -81,6 +122,14 @@ def processar_documento(scraper, classificador, processo, documento, documento_i
 
         if documento_raiz_processo(nome_documento, numero_original, numero):
             log(f"Item raiz do processo ignorado: {nome_documento}")
+            return False
+
+        descartavel, motivo_descarte = documento_descartavel_pre_download(nome_documento)
+        if descartavel:
+            log(
+                f"Documento ignorado por heuristica pre-download "
+                f"(termo='{motivo_descarte}'): {nome_documento}"
+            )
             return False
 
         prefixo_progresso = ""
@@ -213,10 +262,17 @@ def processar_processo(scraper, classificador, processo, indice, total, checkpoi
     log(f"Empreendimento: {empreendimento}")
 
     eias_encontrados = 0
+    documentos_listados = 0
+    documentos_processados = 0
+    erros_documento = 0
+    status = "concluido"
+    erro_processo = ""
+    inicio = monotonic()
 
     try:
         scraper.buscar_processo(numero)
         documentos = scraper.listar_documentos()
+        documentos_listados = len(documentos)
         log(f"{len(documentos)} documento(s) listados para o processo.")
 
         inicio_documento = 0
@@ -241,6 +297,7 @@ def processar_processo(scraper, classificador, processo, indice, total, checkpoi
             if documento_idx < inicio_documento:
                 continue
 
+            documentos_processados += 1
             if processar_documento(
                 scraper=scraper,
                 classificador=classificador,
@@ -267,6 +324,9 @@ def processar_processo(scraper, classificador, processo, indice, total, checkpoi
             checkpoint.marcar_processo_concluido(numero_original)
 
     except Exception as exc:
+        status = "erro"
+        erro_processo = f"{exc.__class__.__name__}: {exc}"
+        erros_documento += 1
         log(f"Erro ao processar processo {numero_original}: {exc}")
 
     finally:
@@ -277,8 +337,76 @@ def processar_processo(scraper, classificador, processo, indice, total, checkpoi
                 f"{removidos} arquivo(s) removido(s)."
             )
 
+    duracao_segundos = int(monotonic() - inicio)
+    return {
+        "numero_processo": numero_original,
+        "empreendimento": empreendimento,
+        "status": status,
+        "erro_processo": erro_processo,
+        "documentos_listados": documentos_listados,
+        "documentos_processados": documentos_processados,
+        "erros_documento": erros_documento,
+        "eias_encontrados": eias_encontrados,
+        "duracao_segundos": duracao_segundos,
+    }
+
+
+def _formatar_duracao(segundos: int):
+    horas, resto = divmod(max(0, int(segundos)), 3600)
+    minutos, secs = divmod(resto, 60)
+    return f"{horas:02d}:{minutos:02d}:{secs:02d}"
+
+
+def montar_relatorio_execucao(
+    inicio_execucao: datetime,
+    fim_execucao: datetime,
+    processos_planejados: int,
+    processos_resumidos: list,
+):
+    total_execucao = int((fim_execucao - inicio_execucao).total_seconds())
+    processos_concluidos = sum(1 for p in processos_resumidos if p["status"] == "concluido")
+    processos_erro = processos_planejados - processos_concluidos
+    docs_listados = sum(p["documentos_listados"] for p in processos_resumidos)
+    docs_processados = sum(p["documentos_processados"] for p in processos_resumidos)
+    erros_documento = sum(p["erros_documento"] for p in processos_resumidos)
+    eias_total = sum(p["eias_encontrados"] for p in processos_resumidos)
+
+    linhas = [
+        "Relatorio de Execucao AGIL",
+        f"Inicio: {inicio_execucao.strftime('%Y-%m-%d %H:%M:%S')}",
+        f"Fim: {fim_execucao.strftime('%Y-%m-%d %H:%M:%S')}",
+        f"Duracao total: {_formatar_duracao(total_execucao)}",
+        "",
+        "Resumo Geral",
+        f"Processos planejados: {processos_planejados}",
+        f"Processos concluidos: {processos_concluidos}",
+        f"Processos com erro: {processos_erro}",
+        f"Documentos listados: {docs_listados}",
+        f"Documentos processados: {docs_processados}",
+        f"Erros de documento/processo: {erros_documento}",
+        f"EIA recuperados: {eias_total}",
+        "",
+        "Detalhamento por processo",
+    ]
+
+    for proc in processos_resumidos:
+        linha = (
+            f"- {proc['numero_processo']} | status={proc['status']} | "
+            f"docs={proc['documentos_processados']}/{proc['documentos_listados']} | "
+            f"eias={proc['eias_encontrados']} | "
+            f"duracao={_formatar_duracao(proc['duracao_segundos'])}"
+        )
+        if proc.get("erro_processo"):
+            linha += f" | erro={proc['erro_processo']}"
+        linhas.append(linha)
+
+    return "\n".join(linhas)
+
 
 def main():
+    # Carrega configuracoes locais padrao de ambiente quando houver.
+    carregar_env_arquivo(".env")
+    carregar_env_arquivo(".env.local")
 
     usuario = input("Usuario SEI: ")
     senha = input("Senha SEI: ")
@@ -310,13 +438,16 @@ def main():
             f"ja concluidos, {len(processos_pendentes)} pendente(s)."
         )
 
+    inicio_execucao = datetime.now()
+    resumo_processos = []
+
     try:
         log(f"Iniciando login no SEI (headless={headless})...")
         scraper.login(usuario, senha)
 
         total = len(processos_pendentes)
         for indice, processo in enumerate(processos_pendentes, start=1):
-            processar_processo(
+            resumo = processar_processo(
                 scraper=scraper,
                 classificador=classificador,
                 processo=processo,
@@ -324,11 +455,35 @@ def main():
                 total=total,
                 checkpoint=checkpoint,
             )
+            resumo_processos.append(resumo)
 
         log("Execucao finalizada.")
 
     finally:
         scraper.fechar()
+        fim_execucao = datetime.now()
+        relatorio = montar_relatorio_execucao(
+            inicio_execucao=inicio_execucao,
+            fim_execucao=fim_execucao,
+            processos_planejados=len(processos_pendentes),
+            processos_resumidos=resumo_processos,
+        )
+        log("\n" + relatorio)
+        try:
+            assunto = (
+                f"[AGIL] Execucao finalizada - "
+                f"{fim_execucao.strftime('%Y-%m-%d %H:%M')}"
+            )
+            enviado, mensagem = enviar_relatorio_execucao(assunto, relatorio)
+            if enviado:
+                log(f"Relatorio por e-mail enviado: {mensagem}")
+            else:
+                log(f"Relatorio por e-mail nao enviado: {mensagem}")
+        except Exception as exc:
+            log(
+                f"Falha inesperada ao enviar e-mail de relatorio: "
+                f"{exc.__class__.__name__}: {exc}"
+            )
 
 
 if __name__ == "__main__":

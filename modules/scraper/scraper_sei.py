@@ -159,9 +159,10 @@ class ScraperSEI:
         while True:
 
             try:
+                # Alguns processos nao trazem title padrao "Abrir Pasta".
                 botoes_expandir = self.driver.find_elements(
                     By.XPATH,
-                    "//img[contains(@src,'plus.gif') and starts-with(@title, 'Abrir Pasta')]"
+                    "//img[contains(@src,'plus.gif')]"
                 )
             except StaleElementReferenceException:
                 time.sleep(0.4)
@@ -178,15 +179,22 @@ class ScraperSEI:
 
                 src_antes = botao.get_attribute("src") or ""
                 titulo_antes = botao.get_attribute("title") or ""
-                ancora = self.driver.find_element(By.ID, f"anc{botao.get_attribute('id')}")
+                botao_id = (botao.get_attribute("id") or "").strip()
+                ancora = None
+                if botao_id:
+                    try:
+                        ancora = self.driver.find_element(By.ID, f"anc{botao_id}")
+                    except NoSuchElementException:
+                        ancora = None
 
+                alvo_click = ancora if ancora is not None else botao
                 self.driver.execute_script(
                     "arguments[0].scrollIntoView({block: 'center'});",
-                    ancora
+                    alvo_click
                 )
                 self.driver.execute_script(
                     "arguments[0].click();",
-                    ancora
+                    alvo_click
                 )
 
                 WebDriverWait(self.driver, 5).until(
