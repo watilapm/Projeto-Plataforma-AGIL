@@ -455,6 +455,33 @@ def main():
                 total=total,
                 checkpoint=checkpoint,
             )
+
+            erro_timeout = (
+                resumo.get("status") == "erro"
+                and "TimeoutException" in (resumo.get("erro_processo") or "")
+            )
+            if erro_timeout:
+                numero = processo.get("numero_original") or processo.get("numero_processo")
+                log(
+                    f"Timeout no processo {numero}. "
+                    "Tentando relogin e nova tentativa unica..."
+                )
+                try:
+                    scraper.login(usuario, senha)
+                    resumo = processar_processo(
+                        scraper=scraper,
+                        classificador=classificador,
+                        processo=processo,
+                        indice=indice,
+                        total=total,
+                        checkpoint=checkpoint,
+                    )
+                except Exception as exc:
+                    log(
+                        f"Falha no relogin/retry do processo {numero}: "
+                        f"{exc.__class__.__name__}: {exc}"
+                    )
+
             resumo_processos.append(resumo)
 
         log("Execucao finalizada.")

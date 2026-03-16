@@ -88,6 +88,25 @@ def normalizar_texto_regra(texto: str):
     return texto
 
 
+def numero_processo_valido(numero_original: str, numero_limpo: str):
+
+    texto = (numero_original or "").strip()
+    if not texto:
+        return False
+
+    # Formatos historicos aceitos no IBAMA:
+    # 02001.000000/2000-00 (17 digitos limpos)
+    # 02001.000000/98-00   (15 digitos limpos)
+    padrao = r"^\d{5}\.\d{6}/(?:\d{4}|\d{2})-\d{2}$"
+    if not re.fullmatch(padrao, texto):
+        return False
+
+    if len(numero_limpo) not in {15, 17}:
+        return False
+
+    return True
+
+
 def documento_indica_eia(documento, nome_analise=""):
 
     termos = [
@@ -153,6 +172,21 @@ def obter_processos():
     caminho_csv = resolver_csv_entrada()
     log(f"CSV de entrada selecionado: {caminho_csv}")
     processos = carregar_processos(caminho_csv)
+    processos_validos = []
+    invalidos = 0
+
+    for processo in processos:
+        numero_original = processo.get("numero_original", "")
+        numero_limpo = processo.get("numero_processo", "")
+        if not numero_processo_valido(numero_original, numero_limpo):
+            invalidos += 1
+            continue
+        processos_validos.append(processo)
+
+    if invalidos:
+        log(f"{invalidos} linha(s) com numero de processo invalido foram ignoradas.")
+
+    processos = processos_validos
     processos_unicos = []
     vistos = set()
     repetidos = 0
