@@ -546,8 +546,22 @@ class ScraperSEI:
                 wait = WebDriverWait(self.driver, self.doc_timeout_click)
                 elemento = None
 
+                onclick_bruto = metadata.get("onclick", "").strip()
+                if onclick_bruto:
+                    comando = onclick_bruto
+                    if comando.lower().startswith("javascript:"):
+                        comando = comando[len("javascript:"):]
+                    if comando and not comando.rstrip().endswith(";"):
+                        comando = f"{comando};"
+                    if comando:
+                        try:
+                            self.driver.execute_script(comando)
+                            elemento = "executado_por_onclick"
+                        except Exception:
+                            elemento = None
+
                 href_bruto = metadata.get("href_bruto", "").strip()
-                if href_bruto:
+                if elemento is None and href_bruto:
                     href_xpath = self._xpath_literal(href_bruto)
                     try:
                         elemento = wait.until(
@@ -596,7 +610,8 @@ class ScraperSEI:
                         EC.element_to_be_clickable((By.XPATH, xpath_link))
                     )
 
-                self.driver.execute_script("arguments[0].click();", elemento)
+                if elemento != "executado_por_onclick":
+                    self.driver.execute_script("arguments[0].click();", elemento)
 
                 self.driver.switch_to.default_content()
                 try:
