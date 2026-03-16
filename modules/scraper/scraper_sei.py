@@ -501,6 +501,8 @@ class ScraperSEI:
         if "." not in Path(nome_arquivo).name:
             if "pdf" in content_type:
                 nome_arquivo += ".pdf"
+            elif "zip" in content_type or "compressed" in content_type:
+                nome_arquivo += ".zip"
             else:
                 nome_arquivo += ".bin"
 

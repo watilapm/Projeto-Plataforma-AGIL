@@ -36,8 +36,11 @@ def validar_zip(caminho_arquivo):
 
     arquivo = Path(caminho_arquivo)
 
-    if arquivo.suffix.lower() != ".zip":
-        return False, "extensao nao eh .zip"
+    try:
+        if zipfile.is_zipfile(arquivo):
+            return True, "ok"
+    except Exception as exc:
+        return False, f"falha ao validar zip: {exc}"
 
     try:
         assinatura = arquivo.read_bytes()[:4]
