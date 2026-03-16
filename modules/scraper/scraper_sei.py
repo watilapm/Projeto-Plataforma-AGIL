@@ -530,13 +530,13 @@ class ScraperSEI:
 
         for tentativa in range(max(1, self.doc_tentativas)):
             try:
+                self.driver.switch_to.default_content()
 
                 src_visualizacao_anterior = (
                     self.driver.find_element(By.ID, "ifrVisualizacao").get_attribute("src")
                     or ""
                 )
 
-                self.driver.switch_to.default_content()
                 WebDriverWait(self.driver, self.doc_timeout_click).until(
                     EC.frame_to_be_available_and_switch_to_it((By.ID, "ifrArvore"))
                 )
@@ -655,6 +655,12 @@ class ScraperSEI:
             ) as exc:
                 ultima_excecao = exc
                 self.driver.switch_to.default_content()
+                if isinstance(exc, TimeoutException):
+                    try:
+                        # Reconstroi a arvore quando o SEI perde estado apos muitos cliques.
+                        self.expandir_arvore_documentos()
+                    except Exception:
+                        pass
                 time.sleep(0.4)
                 continue
 
