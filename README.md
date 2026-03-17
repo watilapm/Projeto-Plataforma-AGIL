@@ -61,6 +61,7 @@ O `run.py` carrega `.env`/`.env.local` automaticamente no inicio da execucao.
 - `data/checkpoint_execucao.json`: retomada por processo/documento.
 - `data/execution_state.json`: estado incremental da execucao atual.
 - `data/execution_state_history/`: historico arquivado de execucoes finalizadas/interrompidas.
+- `data/acompanhamento_execucoes.csv`: tabela acumulada por processo e por execucao (documentos listados, processados, EIA e tempo estimado humano).
 
 ## Publicacao no GitHub
 

@@ -11,6 +11,10 @@ from modules.classifier.classificador import ClassificadorEIA
 from modules.notifications.email_report import enviar_relatorio_execucao
 from modules.parser.extrator_texto import extrair_texto_pdf_amostrado
 from modules.scraper.scraper_sei import ScraperSEI
+from modules.storage.acompanhamento_execucoes import (
+    registrar_acompanhamento_execucoes,
+    sincronizar_acompanhamento_com_historico,
+)
 from modules.storage.checkpoint_execucao import CheckpointExecucao
 from modules.storage.execution_state import ExecutionState
 from modules.storage.gerenciador_arquivos import salvar_eia
@@ -528,6 +532,16 @@ def main():
     checkpoint = CheckpointExecucao()
     execution_state = ExecutionState()
 
+    try:
+        total_historico = sincronizar_acompanhamento_com_historico()
+        if total_historico:
+            log(f"Acompanhamento sincronizado com historico: {total_historico} linha(s).")
+    except Exception as exc:
+        log(
+            "Falha ao sincronizar acompanhamento com historico: "
+            f"{exc.__class__.__name__}: {exc}"
+        )
+
     estado_execucao_anterior = execution_state.obter_execucao_em_andamento()
     if estado_execucao_anterior:
         log(
@@ -550,6 +564,24 @@ def main():
         except Exception as exc:
             log(
                 "Falha inesperada ao enviar relatorio de interrupcao: "
+                f"{exc.__class__.__name__}: {exc}"
+            )
+
+        try:
+            total_registros = registrar_acompanhamento_execucoes(
+                run_id=estado_execucao_anterior.get("run_id", ""),
+                status_execucao="interrupted",
+                inicio_execucao=estado_execucao_anterior.get("inicio_execucao", ""),
+                fim_execucao=estado_execucao_anterior.get("heartbeat_em", ""),
+                processos_planejados=int(estado_execucao_anterior.get("processos_planejados") or 0),
+                processos_resumidos=estado_execucao_anterior.get("resumo_processos") or [],
+                origem="detected_on_startup",
+            )
+            if total_registros:
+                log(f"Acompanhamento atualizado com execucao anterior: {total_registros} linha(s).")
+        except Exception as exc:
+            log(
+                "Falha ao registrar acompanhamento da execucao anterior: "
                 f"{exc.__class__.__name__}: {exc}"
             )
 
@@ -705,6 +737,25 @@ def main():
             processos_planejados=len(processos_pendentes),
             processos_resumidos=resumo_processos,
         )
+
+        status_execucao = "finished" if execucao_finalizada and not interrompida else "interrupted"
+        try:
+            total_registros = registrar_acompanhamento_execucoes(
+                run_id=run_id,
+                status_execucao=status_execucao,
+                inicio_execucao=inicio_execucao,
+                fim_execucao=fim_execucao,
+                processos_planejados=len(processos_pendentes),
+                processos_resumidos=resumo_processos,
+                origem="execucao_atual",
+            )
+            if total_registros:
+                log(f"Tabela de acompanhamento atualizada: {total_registros} linha(s).")
+        except Exception as exc:
+            log(
+                "Falha ao atualizar tabela de acompanhamento: "
+                f"{exc.__class__.__name__}: {exc}"
+            )
 
         if execucao_finalizada and not interrompida:
             log("\n" + relatorio)

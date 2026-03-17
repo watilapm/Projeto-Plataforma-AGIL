@@ -44,3 +44,8 @@ teste_*.py
 # Environment
 .env
 .env.local
+# Runtime execution state
+data/execution_state.json
+data/execution_state_history/
+data/run.pid
+data/entrada/*.csv
