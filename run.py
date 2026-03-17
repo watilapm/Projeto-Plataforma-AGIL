@@ -508,20 +508,29 @@ def _restaurar_handlers_sinal(handlers_antigos: dict):
 
 
 def _obter_credenciais_sei():
-    usuario = os.getenv("AGIL_SEI_USUARIO", "").strip()
-    senha = os.getenv("AGIL_SEI_SENHA", "").strip()
+    usuario_env = os.getenv("AGIL_SEI_USUARIO", "").strip()
+    senha_env = os.getenv("AGIL_SEI_SENHA", "").strip()
 
-    if usuario and senha:
-        return usuario, senha
+    if os.isatty(0):
+        usuario = input("Usuario SEI: ").strip()
+        senha = input("Senha SEI: ").strip()
 
-    if not os.isatty(0):
+        usuario = usuario or usuario_env
+        senha = senha or senha_env
+
+        if usuario and senha:
+            return usuario, senha
+
         raise RuntimeError(
-            "Execucao sem TTY detectada. Defina AGIL_SEI_USUARIO e AGIL_SEI_SENHA no ambiente para rodar em nohup/tmux."
+            "Credenciais SEI nao informadas. Preencha no terminal ou defina AGIL_SEI_USUARIO e AGIL_SEI_SENHA."
         )
 
-    usuario = input("Usuario SEI: ")
-    senha = input("Senha SEI: ")
-    return usuario, senha
+    if usuario_env and senha_env:
+        return usuario_env, senha_env
+
+    raise RuntimeError(
+        "Execucao sem TTY detectada. Defina AGIL_SEI_USUARIO e AGIL_SEI_SENHA no ambiente para rodar em nohup/tmux."
+    )
 
 
 def main():
