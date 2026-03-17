@@ -27,6 +27,8 @@ CSV_ENTRADA = BASE_DIR / "sislic-licencas.csv"
 CSV_RESULTADOS = DATA_DIR / "base_classificada.csv"
 CSV_DATASET_CANDIDATOS = DATASET_CANDIDATOS_DIR / "catalogo.csv"
 CHECKPOINT_EXECUCAO = DATA_DIR / "checkpoint_execucao.json"
+EXECUTION_STATE_ARQUIVO = DATA_DIR / "execution_state.json"
+EXECUTION_STATE_HISTORICO_DIR = DATA_DIR / "execution_state_history"
 
 MODELO_CLASSIFICADOR = MODELS_DIR / "modelo_eia_vs_outro_ensemble_v4.joblib"
 

@@ -1,15 +1,18 @@
 #!/usr/bin/env python
 
 import os
+import signal
 import zipfile
 from datetime import datetime
 from time import monotonic
+from uuid import uuid4
 
 from modules.classifier.classificador import ClassificadorEIA
 from modules.notifications.email_report import enviar_relatorio_execucao
-from modules.parser.extrator_texto import extrair_texto_e_paginas_pdf
+from modules.parser.extrator_texto import extrair_texto_pdf_amostrado
 from modules.scraper.scraper_sei import ScraperSEI
 from modules.storage.checkpoint_execucao import CheckpointExecucao
+from modules.storage.execution_state import ExecutionState
 from modules.storage.gerenciador_arquivos import salvar_eia
 from modules.storage.registro_resultados import registrar_resultado
 from modules.utils.env_loader import carregar_env_arquivo
@@ -189,7 +192,7 @@ def processar_documento(scraper, classificador, processo, documento, documento_i
                 continue
 
             log(f"{prefixo_progresso}Analisando arquivo: {arquivo.name}")
-            texto, _paginas = extrair_texto_e_paginas_pdf(arquivo)
+            texto, _paginas = extrair_texto_pdf_amostrado(arquivo, paginas_bloco=8, limite_paginas=80)
             if not texto.strip():
                 log(f"{prefixo_progresso}Arquivo sem texto extraido: {nome_analise}")
                 continue
@@ -403,24 +406,164 @@ def montar_relatorio_execucao(
     return "\n".join(linhas)
 
 
+
+
+def _parse_datetime_iso(valor: str, fallback: datetime):
+    if not valor:
+        return fallback
+    try:
+        return datetime.fromisoformat(valor)
+    except Exception:
+        return fallback
+
+
+def montar_relatorio_interrupcao(execucao_estado: dict, checkpoint: CheckpointExecucao):
+    inicio = _parse_datetime_iso(execucao_estado.get("inicio_execucao", ""), datetime.now())
+    heartbeat = _parse_datetime_iso(execucao_estado.get("heartbeat_em", ""), datetime.now())
+    processos_planejados = int(execucao_estado.get("processos_planejados") or 0)
+    processos_resumidos = list(execucao_estado.get("resumo_processos") or [])
+
+    relatorio_base = montar_relatorio_execucao(
+        inicio_execucao=inicio,
+        fim_execucao=heartbeat,
+        processos_planejados=processos_planejados,
+        processos_resumidos=processos_resumidos,
+    )
+
+    interrupcao = execucao_estado.get("interrupcao") or {}
+    processo_atual = checkpoint.estado.get("processo_atual") if hasattr(checkpoint, "estado") else None
+
+    linhas = [
+        "Relatorio de Interrupcao Detectada (execucao anterior)",
+        f"Run ID: {execucao_estado.get('run_id', '')}",
+        f"Status salvo: {execucao_estado.get('status', '')}",
+        f"Inicio salvo: {execucao_estado.get('inicio_execucao', '')}",
+        f"Heartbeat salvo: {execucao_estado.get('heartbeat_em', '')}",
+        f"Motivo salvo: {interrupcao.get('motivo', '')}",
+        f"Detalhe salvo: {interrupcao.get('detalhe', '')}",
+        f"Tentativas de retry por timeout: {len(execucao_estado.get('timeout_retries') or [])}",
+        "",
+    ]
+
+    if isinstance(processo_atual, dict):
+        linhas.extend(
+            [
+                "Checkpoint (processo em andamento na ultima execucao):",
+                f"- numero_original: {processo_atual.get('numero_original', '')}",
+                f"- indice_processo: {processo_atual.get('indice_processo', '')}/{processo_atual.get('total_processos', '')}",
+                f"- proximo_documento_idx: {processo_atual.get('proximo_documento_idx', '')}",
+                f"- documento_atual: {processo_atual.get('documento_atual', '')}",
+                "",
+            ]
+        )
+
+    linhas.append(relatorio_base)
+    return "\n".join(linhas)
+
+
+def _instalar_handlers_sinal(execution_state: ExecutionState, resumo_processos: list):
+    handlers_antigos = {
+        signal.SIGINT: signal.getsignal(signal.SIGINT),
+        signal.SIGTERM: signal.getsignal(signal.SIGTERM),
+    }
+
+    estado_sinal = {"recebido": False}
+
+    def _handler(signum, _frame):
+        nome_sinal = signal.Signals(signum).name
+        if estado_sinal["recebido"]:
+            raise KeyboardInterrupt(f"Sinal repetido recebido: {nome_sinal}")
+
+        estado_sinal["recebido"] = True
+        log(f"Sinal {nome_sinal} recebido. Salvando estado de interrupcao...")
+        try:
+            execution_state.marcar_interrompida(
+                motivo=nome_sinal,
+                detalhe="Sinal recebido durante execucao",
+                processos_resumidos=resumo_processos,
+            )
+        except Exception as exc:
+            log(
+                f"Falha ao persistir estado apos sinal {nome_sinal}: "
+                f"{exc.__class__.__name__}: {exc}"
+            )
+
+        raise KeyboardInterrupt(f"Sinal {nome_sinal} recebido")
+
+    signal.signal(signal.SIGINT, _handler)
+    signal.signal(signal.SIGTERM, _handler)
+    return handlers_antigos
+
+
+def _restaurar_handlers_sinal(handlers_antigos: dict):
+    for sig, handler in (handlers_antigos or {}).items():
+        try:
+            signal.signal(sig, handler)
+        except Exception:
+            pass
+
+
+def _obter_credenciais_sei():
+    usuario = os.getenv("AGIL_SEI_USUARIO", "").strip()
+    senha = os.getenv("AGIL_SEI_SENHA", "").strip()
+
+    if usuario and senha:
+        return usuario, senha
+
+    if not os.isatty(0):
+        raise RuntimeError(
+            "Execucao sem TTY detectada. Defina AGIL_SEI_USUARIO e AGIL_SEI_SENHA no ambiente para rodar em nohup/tmux."
+        )
+
+    usuario = input("Usuario SEI: ")
+    senha = input("Senha SEI: ")
+    return usuario, senha
+
+
 def main():
     # Carrega configuracoes locais padrao de ambiente quando houver.
     carregar_env_arquivo(".env")
     carregar_env_arquivo(".env.local")
 
-    usuario = input("Usuario SEI: ")
-    senha = input("Senha SEI: ")
+    checkpoint = CheckpointExecucao()
+    execution_state = ExecutionState()
+
+    estado_execucao_anterior = execution_state.obter_execucao_em_andamento()
+    if estado_execucao_anterior:
+        log(
+            "Execucao anterior detectada como 'running'. "
+            "Gerando relatorio parcial de interrupcao..."
+        )
+        relatorio_interrupcao = montar_relatorio_interrupcao(estado_execucao_anterior, checkpoint)
+        log("\n" + relatorio_interrupcao)
+
+        assunto_interrupcao = (
+            "[AGIL] Execucao interrompida detectada - "
+            f"{datetime.now().strftime('%Y-%m-%d %H:%M')}"
+        )
+        try:
+            enviado, mensagem = enviar_relatorio_execucao(assunto_interrupcao, relatorio_interrupcao)
+            if enviado:
+                log(f"Relatorio de interrupcao enviado: {mensagem}")
+            else:
+                log(f"Relatorio de interrupcao nao enviado: {mensagem}")
+        except Exception as exc:
+            log(
+                "Falha inesperada ao enviar relatorio de interrupcao: "
+                f"{exc.__class__.__name__}: {exc}"
+            )
+
+        execution_state.marcar_interrompida(
+            motivo="detected_on_startup",
+            detalhe="Execucao anterior estava em running sem finalizacao limpa.",
+            processos_resumidos=estado_execucao_anterior.get("resumo_processos", []),
+        )
+        execution_state.arquivar_e_limpar()
 
     processos = obter_processos()
     if not processos:
         log("Nenhum processo carregado. Encerrando.")
         return
-
-    headless = os.getenv("AGIL_HEADLESS", "1").strip() != "0"
-    scraper = ScraperSEI(headless=headless)
-    classificador = ClassificadorEIA(MODELO_CLASSIFICADOR)
-
-    checkpoint = CheckpointExecucao()
 
     processos_pendentes = [
         processo
@@ -437,16 +580,38 @@ def main():
             f"Retomada ativa: {len(processos) - len(processos_pendentes)} processo(s) "
             f"ja concluidos, {len(processos_pendentes)} pendente(s)."
         )
+    usuario, senha = _obter_credenciais_sei()
+
+    headless = os.getenv("AGIL_HEADLESS", "1").strip() != "0"
+    scraper = ScraperSEI(headless=headless)
+    classificador = ClassificadorEIA(MODELO_CLASSIFICADOR)
 
     inicio_execucao = datetime.now()
+    run_id = f"run_{inicio_execucao.strftime('%Y%m%d_%H%M%S')}_{uuid4().hex[:8]}"
     resumo_processos = []
 
+    execution_state.iniciar_execucao(
+        run_id=run_id,
+        inicio_execucao=inicio_execucao,
+        processos_planejados=len(processos_pendentes),
+    )
+
+    handlers_antigos = {}
+    execucao_finalizada = False
+    interrompida = False
+
     try:
+        handlers_antigos = _instalar_handlers_sinal(execution_state, resumo_processos)
+
+        execution_state.registrar_heartbeat("antes_login")
         log(f"Iniciando login no SEI (headless={headless})...")
         scraper.login(usuario, senha)
 
         total = len(processos_pendentes)
         for indice, processo in enumerate(processos_pendentes, start=1):
+            numero = processo.get("numero_original") or processo.get("numero_processo")
+            execution_state.registrar_heartbeat(f"inicio_processo:{numero}")
+
             resumo = processar_processo(
                 scraper=scraper,
                 classificador=classificador,
@@ -461,12 +626,17 @@ def main():
                 and "TimeoutException" in (resumo.get("erro_processo") or "")
             )
             if erro_timeout:
-                numero = processo.get("numero_original") or processo.get("numero_processo")
+                execution_state.registrar_evento_retry_timeout(
+                    numero_processo=numero,
+                    status="retry_iniciado",
+                    detalhe=resumo.get("erro_processo") or "",
+                )
                 log(
                     f"Timeout no processo {numero}. "
                     "Tentando relogin e nova tentativa unica..."
                 )
                 try:
+                    execution_state.registrar_heartbeat(f"antes_retry:{numero}")
                     scraper.login(usuario, senha)
                     resumo = processar_processo(
                         scraper=scraper,
@@ -476,18 +646,58 @@ def main():
                         total=total,
                         checkpoint=checkpoint,
                     )
+                    status_retry = (
+                        "retry_sucesso" if resumo.get("status") == "concluido" else "retry_sem_sucesso"
+                    )
+                    execution_state.registrar_evento_retry_timeout(
+                        numero_processo=numero,
+                        status=status_retry,
+                        detalhe=resumo.get("erro_processo") or "",
+                    )
                 except Exception as exc:
+                    execution_state.registrar_evento_retry_timeout(
+                        numero_processo=numero,
+                        status="retry_falha",
+                        detalhe=f"{exc.__class__.__name__}: {exc}",
+                    )
                     log(
                         f"Falha no relogin/retry do processo {numero}: "
                         f"{exc.__class__.__name__}: {exc}"
                     )
 
             resumo_processos.append(resumo)
+            execution_state.atualizar_resumo_processos(
+                resumo_processos,
+                contexto=f"fim_processo:{numero}",
+            )
 
         log("Execucao finalizada.")
+        execucao_finalizada = True
+
+    except KeyboardInterrupt as exc:
+        interrompida = True
+        motivo = str(exc) or "KeyboardInterrupt"
+        log(f"Execucao interrompida: {motivo}")
+        execution_state.marcar_interrompida(
+            motivo="sinal_ou_interrupcao",
+            detalhe=motivo,
+            processos_resumidos=resumo_processos,
+        )
+
+    except Exception as exc:
+        interrompida = True
+        motivo = f"{exc.__class__.__name__}: {exc}"
+        log(f"Falha inesperada no loop principal: {motivo}")
+        execution_state.marcar_interrompida(
+            motivo="erro_inesperado",
+            detalhe=motivo,
+            processos_resumidos=resumo_processos,
+        )
 
     finally:
+        _restaurar_handlers_sinal(handlers_antigos)
         scraper.fechar()
+
         fim_execucao = datetime.now()
         relatorio = montar_relatorio_execucao(
             inicio_execucao=inicio_execucao,
@@ -495,22 +705,37 @@ def main():
             processos_planejados=len(processos_pendentes),
             processos_resumidos=resumo_processos,
         )
-        log("\n" + relatorio)
-        try:
-            assunto = (
-                f"[AGIL] Execucao finalizada - "
-                f"{fim_execucao.strftime('%Y-%m-%d %H:%M')}"
-            )
-            enviado, mensagem = enviar_relatorio_execucao(assunto, relatorio)
-            if enviado:
-                log(f"Relatorio por e-mail enviado: {mensagem}")
-            else:
-                log(f"Relatorio por e-mail nao enviado: {mensagem}")
-        except Exception as exc:
-            log(
-                f"Falha inesperada ao enviar e-mail de relatorio: "
-                f"{exc.__class__.__name__}: {exc}"
-            )
+
+        if execucao_finalizada and not interrompida:
+            log("\n" + relatorio)
+            try:
+                assunto = (
+                    f"[AGIL] Execucao finalizada - "
+                    f"{fim_execucao.strftime('%Y-%m-%d %H:%M')}"
+                )
+                enviado, mensagem = enviar_relatorio_execucao(assunto, relatorio)
+                if enviado:
+                    log(f"Relatorio por e-mail enviado: {mensagem}")
+                else:
+                    log(f"Relatorio por e-mail nao enviado: {mensagem}")
+            except Exception as exc:
+                log(
+                    f"Falha inesperada ao enviar e-mail de relatorio: "
+                    f"{exc.__class__.__name__}: {exc}"
+                )
+
+            execution_state.marcar_finalizada(resumo_processos)
+            execution_state.arquivar_e_limpar()
+        else:
+            log("Execucao encerrada sem finalizacao completa. Relatorio parcial abaixo.")
+            log("\n" + relatorio)
+            estado_atual = execution_state.obter_estado()
+            if (estado_atual.get("status") or "") != "interrupted":
+                execution_state.marcar_interrompida(
+                    motivo="encerramento_nao_finalizado",
+                    detalhe="Execucao terminou sem estado final de sucesso.",
+                    processos_resumidos=resumo_processos,
+                )
 
 
 if __name__ == "__main__":

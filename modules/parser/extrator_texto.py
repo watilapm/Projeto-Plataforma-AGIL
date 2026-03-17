@@ -40,33 +40,53 @@ def extrair_paginas_pdf(caminho_pdf):
     return paginas
 
 
+def _indices_paginas_amostradas(total_paginas: int, paginas_bloco: int):
+
+    if total_paginas <= 0:
+        return []
+
+    if total_paginas <= paginas_bloco * 3:
+        return list(range(total_paginas))
+
+    inicio = list(range(paginas_bloco))
+    meio_centro = total_paginas // 2
+    meio_inicio = max(0, meio_centro - paginas_bloco // 2)
+    meio = list(range(meio_inicio, min(total_paginas, meio_inicio + paginas_bloco)))
+    fim = list(range(max(0, total_paginas - paginas_bloco), total_paginas))
+
+    indices = sorted(set(inicio + meio + fim))
+    return indices
+
+
 def extrair_texto_pdf_amostrado(caminho_pdf, paginas_bloco=10, limite_paginas=60):
 
-    paginas = extrair_paginas_pdf(caminho_pdf)
-    if not paginas:
-        return "", paginas
+    texto = []
+    paginas = []
 
-    if len(paginas) <= limite_paginas:
-        texto = "\n".join(pagina["texto"] for pagina in paginas if pagina["texto"].strip())
-        return texto, paginas
+    try:
 
-    bloco_inicial = paginas[:paginas_bloco]
-    meio = len(paginas) // 2
-    inicio_meio = max(0, meio - paginas_bloco // 2)
-    bloco_meio = paginas[inicio_meio: inicio_meio + paginas_bloco]
-    bloco_final = paginas[-paginas_bloco:]
+        with pdfplumber.open(caminho_pdf) as pdf:
+            total_paginas = len(pdf.pages)
 
-    paginas_selecionadas = []
-    vistos = set()
-    for bloco in (bloco_inicial, bloco_meio, bloco_final):
-        for pagina in bloco:
-            numero = pagina["numero_pagina"]
-            if numero in vistos:
-                continue
-            vistos.add(numero)
-            paginas_selecionadas.append(pagina)
+            if total_paginas <= limite_paginas:
+                indices = list(range(total_paginas))
+            else:
+                indices = _indices_paginas_amostradas(total_paginas, paginas_bloco)
 
-    texto = "\n".join(
-        pagina["texto"] for pagina in paginas_selecionadas if pagina["texto"].strip()
-    )
-    return texto, paginas_selecionadas
+            for indice in indices:
+                conteudo = pdf.pages[indice].extract_text() or ""
+                if conteudo:
+                    texto.append(conteudo)
+
+                paginas.append(
+                    {
+                        "numero_pagina": indice + 1,
+                        "texto": conteudo,
+                    }
+                )
+
+    except Exception as e:
+
+        print("Erro ao extrair texto do PDF:", e)
+
+    return "\n".join(texto), paginas
