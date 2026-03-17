@@ -3,6 +3,7 @@
 import os
 import signal
 import zipfile
+from getpass import getpass
 from datetime import datetime
 from time import monotonic
 from uuid import uuid4
@@ -513,7 +514,7 @@ def _obter_credenciais_sei():
 
     if os.isatty(0):
         usuario = input("Usuario SEI: ").strip()
-        senha = input("Senha SEI: ").strip()
+        senha = getpass("Senha SEI: ").strip()
 
         usuario = usuario or usuario_env
         senha = senha or senha_env
