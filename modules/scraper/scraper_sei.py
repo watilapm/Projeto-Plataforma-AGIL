@@ -32,7 +32,7 @@ class ScraperSEI:
         self.doc_timeout_click = int(os.getenv("AGIL_DOC_TIMEOUT_CLICK", "8"))
         self.doc_timeout_visual = int(os.getenv("AGIL_DOC_TIMEOUT_VISUAL", "6"))
         self.doc_timeout_conteudo = int(os.getenv("AGIL_DOC_TIMEOUT_CONTEUDO", "4"))
-        self.doc_tentativas = int(os.getenv("AGIL_DOC_TENTATIVAS", "2"))
+        self.doc_tentativas = int(os.getenv("AGIL_DOC_TENTATIVAS", "5"))
         self.driver = self._iniciar_driver()
 
     # --------------------------------------------------

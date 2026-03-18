@@ -14,12 +14,20 @@ python -m pip install -r requirements.txt
 ## Execucao principal
 
 ```bash
+read -r -p "SEI usuario: " AGIL_SEI_USUARIO
+read -r -s -p "SEI senha: " AGIL_SEI_SENHA
+echo
+export AGIL_SEI_USUARIO AGIL_SEI_SENHA
 AGIL_HEADLESS=1 python -u run.py
 ```
 
 Opcional para limitar lote:
 
 ```bash
+read -r -p "SEI usuario: " AGIL_SEI_USUARIO
+read -r -s -p "SEI senha: " AGIL_SEI_SENHA
+echo
+export AGIL_SEI_USUARIO AGIL_SEI_SENHA
 AGIL_MAX_PROCESSOS=5 AGIL_HEADLESS=1 python -u run.py
 ```
 
@@ -29,8 +37,12 @@ Use bloqueio de suspensao + sessao resiliente para evitar perda de execucao por 
 
 ```bash
 tmux new -s agil
+read -r -p "SEI usuario: " AGIL_SEI_USUARIO
+read -r -s -p "SEI senha: " AGIL_SEI_SENHA
+echo
+export AGIL_SEI_USUARIO AGIL_SEI_SENHA
 systemd-inhibit --what=sleep:idle --why="AGIL em execucao" \
-  env AGIL_HEADLESS=1 AGIL_MAX_CHARS_CLASSIFICADOR=250000 AGIL_SEI_USUARIO=seu_usuario AGIL_SEI_SENHA=sua_senha python -u run.py
+  env AGIL_HEADLESS=1 python -u run.py
 ```
 
 Alternativas de monitoramento:
@@ -53,8 +65,10 @@ Para replicar em qualquer maquina:
 cp .env.example .env
 ```
 
-Edite o `.env` com seus valores (principalmente `AGIL_SEI_USUARIO`, `AGIL_SEI_SENHA` e `AGIL_EMAIL_PASSWORD` com App Password do Gmail).
+Edite o `.env` com seus valores persistentes (principalmente `AGIL_EMAIL_PASSWORD` com App Password do Gmail).
+Para reduzir exposicao de credenciais, `AGIL_SEI_USUARIO` e `AGIL_SEI_SENHA` devem ser informados por sessao (via `read` + `export` nos comandos acima), sem salvar senha em arquivo.
 O `run.py` carrega `.env`/`.env.local` automaticamente no inicio da execucao.
+O limite padrao do classificador e `AGIL_MAX_CHARS_CLASSIFICADOR=250000` (definido no `.env.example`) e pode ser sobrescrito por sessao quando necessario.
 
 ## Checkpoint e estado de execucao
 
