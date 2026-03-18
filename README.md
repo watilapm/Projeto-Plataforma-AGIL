@@ -68,7 +68,7 @@ cp .env.example .env
 Edite o `.env` com seus valores persistentes (principalmente `AGIL_EMAIL_PASSWORD` com App Password do Gmail).
 Para reduzir exposicao de credenciais, `AGIL_SEI_USUARIO` e `AGIL_SEI_SENHA` devem ser informados por sessao (via `read` + `export` nos comandos acima), sem salvar senha em arquivo.
 O `run.py` carrega `.env`/`.env.local` automaticamente no inicio da execucao.
-O limite padrao do classificador e `AGIL_MAX_CHARS_CLASSIFICADOR=250000` (definido no `.env.example`) e pode ser sobrescrito por sessao quando necessario.
+`AGIL_MAX_CHARS_CLASSIFICADOR` define o tamanho da janela de classificacao por chunk (padrao 250000, no `.env.example`), cobrindo o texto completo; `AGIL_CLASSIFICADOR_CHUNK_OVERLAP` (padrao 10000) define a sobreposicao entre janelas.
 
 ## Checkpoint e estado de execucao
 
