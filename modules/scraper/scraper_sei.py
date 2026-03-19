@@ -422,7 +422,7 @@ class ScraperSEI:
                     atributo = "href"
 
                 url = (elemento.get_attribute(atributo) or "").strip()
-                if url:
+                if self._url_download_valida(url):
                     return url
 
         try:
@@ -430,7 +430,26 @@ class ScraperSEI:
         except Exception:
             url_atual = ""
 
-        return url_atual.strip() or None
+        url_atual = (url_atual or "").strip()
+        return url_atual if self._url_download_valida(url_atual) else None
+
+    # --------------------------------------------------
+
+    @staticmethod
+    def _url_download_valida(url: str) -> bool:
+
+        valor = (url or "").strip().lower()
+        if not valor:
+            return False
+        if valor.startswith("about:"):
+            return False
+        if valor.startswith("javascript:"):
+            return False
+        if valor.startswith("data:"):
+            return False
+        if valor.startswith("#"):
+            return False
+        return True
 
     # --------------------------------------------------
 
