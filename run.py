@@ -10,7 +10,7 @@ from uuid import uuid4
 
 from modules.classifier.classificador import ClassificadorEIA
 from modules.notifications.email_report import enviar_relatorio_execucao
-from modules.parser.extrator_texto import extrair_texto_pdf_amostrado
+from modules.parser.extrator_texto import extrair_texto_pdf, extrair_texto_pdf_amostrado
 from modules.scraper.scraper_sei import ScraperSEI
 from modules.storage.acompanhamento_execucoes import (
     registrar_acompanhamento_execucoes,
@@ -197,7 +197,11 @@ def processar_documento(scraper, classificador, processo, documento, documento_i
                 continue
 
             log(f"{prefixo_progresso}Analisando arquivo: {arquivo.name}")
-            texto, _paginas = extrair_texto_pdf_amostrado(arquivo, paginas_bloco=8, limite_paginas=80)
+            texto, paginas_amostradas = extrair_texto_pdf_amostrado(
+                arquivo,
+                paginas_bloco=8,
+                limite_paginas=80,
+            )
             if not texto.strip():
                 log(f"{prefixo_progresso}Arquivo sem texto extraido: {nome_analise}")
                 continue
@@ -206,8 +210,21 @@ def processar_documento(scraper, classificador, processo, documento, documento_i
             if numero_sei_final == "sem_numero_sei":
                 numero_sei_final = extrair_numero_sei(texto) or numero_sei
 
-            criterio_classificacao = "modelo_v4"
+            criterio_classificacao = "modelo_v4_amostrado"
             resultado = classificador.prever(texto)
+
+            if resultado != 1 and len(paginas_amostradas) >= 24:
+                log(
+                    f"{prefixo_progresso}Negativo na amostra; reanalisando documento completo: "
+                    f"{nome_analise}"
+                )
+                texto_completo = extrair_texto_pdf(arquivo)
+                if texto_completo.strip():
+                    if numero_sei_final == "sem_numero_sei":
+                        numero_sei_final = extrair_numero_sei(texto_completo) or numero_sei
+                    resultado = classificador.prever(texto_completo)
+                    if resultado == 1:
+                        criterio_classificacao = "modelo_v4_texto_completo_fallback"
 
             if resultado != 1:
                 log(f"{prefixo_progresso}Arquivo nao classificado como EIA: {nome_analise}")
