@@ -191,12 +191,38 @@ def _int_env(nome: str, padrao: int):
         return padrao
 
 
+def _erro_timeout(resumo: dict):
+    return (
+        resumo.get("status") == "erro"
+        and "TimeoutException" in (resumo.get("erro_processo") or "")
+    )
+
+
+def _erro_tab_crashed(resumo: dict):
+    erro = (resumo.get("erro_processo") or "").lower()
+    return resumo.get("status") == "erro" and "tab crashed" in erro
+
+
+def _reiniciar_scraper_com_login(scraper, headless, usuario, senha):
+    try:
+        scraper.fechar()
+    except Exception:
+        pass
+
+    novo_scraper = ScraperSEI(headless=headless)
+    novo_scraper.login(usuario, senha)
+    return novo_scraper
+
+
 def reanalisar_documento_em_blocos(classificador, arquivo, numero_sei_atual):
 
     paginas_por_bloco = max(8, _int_env("AGIL_REANALISE_PAGINAS_BLOCO", 24))
     max_blocos = max(0, _int_env("AGIL_REANALISE_MAX_BLOCOS", 80))
+    janela_chars = max(120000, _int_env("AGIL_REANALISE_JANELA_CHARS", 260000))
 
     blocos_analisados = 0
+    texto_janela = ""
+
     for texto_bloco, paginas_bloco in iterar_blocos_texto_pdf(
         arquivo,
         paginas_por_bloco=paginas_por_bloco,
@@ -214,6 +240,16 @@ def reanalisar_documento_em_blocos(classificador, arquivo, numero_sei_atual):
             pagina_inicio = paginas_bloco[0] if paginas_bloco else 0
             pagina_fim = paginas_bloco[-1] if paginas_bloco else 0
             criterio = f"modelo_v4_reanalise_bloco:{pagina_inicio}-{pagina_fim}"
+            return 1, criterio, numero_sei_atual, blocos_analisados
+
+        texto_janela = (texto_janela + "\n" + texto_classificacao).strip()
+        if len(texto_janela) > janela_chars:
+            texto_janela = texto_janela[-janela_chars:]
+
+        if blocos_analisados >= 2 and classificador.prever(texto_janela) == 1:
+            pagina_inicio = paginas_bloco[0] if paginas_bloco else 0
+            pagina_fim = paginas_bloco[-1] if paginas_bloco else 0
+            criterio = f"modelo_v4_reanalise_janela:{pagina_inicio}-{pagina_fim}"
             return 1, criterio, numero_sei_atual, blocos_analisados
 
     return 0, "", numero_sei_atual, blocos_analisados
@@ -832,9 +868,23 @@ def main():
         scraper.login(usuario, senha)
 
         total = len(processos_pendentes)
+        reinicio_preventivo_cada = max(0, _int_env("AGIL_RESTART_BROWSER_CADA_PROCESSOS", 3))
         for indice, processo in enumerate(processos_pendentes, start=1):
             numero = processo.get("numero_original") or processo.get("numero_processo")
             execution_state.registrar_heartbeat(f"inicio_processo:{numero}")
+
+            if reinicio_preventivo_cada and indice > 1 and (indice - 1) % reinicio_preventivo_cada == 0:
+                log(
+                    f"Reinicio preventivo do navegador antes do processo {numero} "
+                    f"(a cada {reinicio_preventivo_cada} processo(s))."
+                )
+                try:
+                    scraper = _reiniciar_scraper_com_login(scraper, headless, usuario, senha)
+                except Exception as exc:
+                    log(
+                        "Falha no reinicio preventivo do navegador: "
+                        f"{exc.__class__.__name__}: {exc}"
+                    )
 
             resumo = processar_processo(
                 scraper=scraper,
@@ -845,23 +895,26 @@ def main():
                 checkpoint=checkpoint,
             )
 
-            erro_timeout = (
-                resumo.get("status") == "erro"
-                and "TimeoutException" in (resumo.get("erro_processo") or "")
-            )
-            if erro_timeout:
+            erro_timeout = _erro_timeout(resumo)
+            erro_tab_crashed = _erro_tab_crashed(resumo)
+            if erro_timeout or erro_tab_crashed:
+                motivo_retry = "timeout" if erro_timeout else "tab_crashed"
                 execution_state.registrar_evento_retry_timeout(
                     numero_processo=numero,
                     status="retry_iniciado",
-                    detalhe=resumo.get("erro_processo") or "",
+                    detalhe=f"{motivo_retry}: {resumo.get('erro_processo') or ''}",
                 )
                 log(
-                    f"Timeout no processo {numero}. "
-                    "Tentando relogin e nova tentativa unica..."
+                    f"Erro recuperavel no processo {numero} ({motivo_retry}). "
+                    "Tentando nova tentativa unica..."
                 )
                 try:
                     execution_state.registrar_heartbeat(f"antes_retry:{numero}")
-                    scraper.login(usuario, senha)
+                    if erro_tab_crashed:
+                        scraper = _reiniciar_scraper_com_login(scraper, headless, usuario, senha)
+                    else:
+                        scraper.login(usuario, senha)
+
                     resumo = processar_processo(
                         scraper=scraper,
                         classificador=classificador,

@@ -73,6 +73,8 @@ A classificacao principal usa amostragem de paginas e, para casos estruturais su
 Variaveis de ajuste do fallback estrutural:
 - `AGIL_REANALISE_PAGINAS_BLOCO` (padrao 24)
 - `AGIL_REANALISE_MAX_BLOCOS` (padrao 80; use 0 para sem limite)
+- `AGIL_REANALISE_JANELA_CHARS` (padrao 260000)
+- `AGIL_RESTART_BROWSER_CADA_PROCESSOS` (padrao 3; reinicia navegador de forma preventiva)
 
 Presets sugeridos (defina no `.env`):
 
