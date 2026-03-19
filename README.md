@@ -68,7 +68,31 @@ cp .env.example .env
 Edite o `.env` com seus valores persistentes (principalmente `AGIL_EMAIL_PASSWORD` com App Password do Gmail).
 Para reduzir exposicao de credenciais, `AGIL_SEI_USUARIO` e `AGIL_SEI_SENHA` devem ser informados por sessao (via `read` + `export` nos comandos acima), sem salvar senha em arquivo.
 O `run.py` carrega `.env`/`.env.local` automaticamente no inicio da execucao.
-O classificador analisa o texto completo extraido de cada documento (sem corte por caracteres).
+A classificacao principal usa amostragem de paginas e, para casos estruturais suspeitos, aplica reanalise progressiva por blocos do PDF (sem carregar o documento inteiro em memoria).
+
+Variaveis de ajuste do fallback estrutural:
+- `AGIL_REANALISE_PAGINAS_BLOCO` (padrao 24)
+- `AGIL_REANALISE_MAX_BLOCOS` (padrao 80; use 0 para sem limite)
+
+Presets sugeridos (defina no `.env`):
+
+1. Conservador (recomendado para estabilidade)
+```bash
+AGIL_REANALISE_PAGINAS_BLOCO=20
+AGIL_REANALISE_MAX_BLOCOS=30
+```
+
+2. Balanceado
+```bash
+AGIL_REANALISE_PAGINAS_BLOCO=24
+AGIL_REANALISE_MAX_BLOCOS=80
+```
+
+3. Agressivo (prioriza recall e pode aumentar tempo/uso de memoria)
+```bash
+AGIL_REANALISE_PAGINAS_BLOCO=28
+AGIL_REANALISE_MAX_BLOCOS=0
+```
 
 ## Checkpoint e estado de execucao
 

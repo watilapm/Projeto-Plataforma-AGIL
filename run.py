@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import re
 import signal
 import zipfile
 from getpass import getpass
@@ -10,7 +11,7 @@ from uuid import uuid4
 
 from modules.classifier.classificador import ClassificadorEIA
 from modules.notifications.email_report import enviar_relatorio_execucao
-from modules.parser.extrator_texto import extrair_texto_pdf, extrair_texto_pdf_amostrado
+from modules.parser.extrator_texto import extrair_texto_pdf_amostrado, iterar_blocos_texto_pdf
 from modules.scraper.scraper_sei import ScraperSEI
 from modules.storage.acompanhamento_execucoes import (
     registrar_acompanhamento_execucoes,
@@ -77,6 +78,145 @@ def documento_indica_eia_titulo(documento, nome_analise=""):
             return True, termo
 
     return False, ""
+
+
+def documento_prioriza_reanalise_completa(documento, nome_analise="", texto_amostrado="", documento_idx=0, total_documentos=0):
+
+    campos = [
+        documento.get("nome", ""),
+        documento.get("numero_sei", ""),
+        documento.get("link_arvore", ""),
+        nome_analise,
+    ]
+    texto_base = " ".join(normalizar_texto_regra(campo) for campo in campos if campo)
+
+    termos_fortes = [
+        "eia",
+        "rima",
+        "estudo de impacto ambiental",
+        "impacto ambiental",
+        "diagnostico ambiental",
+        "estudo ambiental",
+    ]
+    for termo in termos_fortes:
+        if termo in texto_base:
+            return True, f"termo_forte:{termo}"
+
+    termos_capitulo = [
+        "diagnostico",
+        "alternativas",
+        "impactos",
+        "medidas mitigadoras",
+        "meio socioeconomico",
+        "meio biotico",
+        "meio fisico",
+        "prognostico",
+    ]
+    if "capitulo" in texto_base:
+        for termo in termos_capitulo:
+            if termo in texto_base:
+                return True, f"capitulo:{termo}"
+
+    texto_amostra_norm = normalizar_texto_regra((texto_amostrado or "")[:12000])
+    termos_amostra = [
+        "estudo de impacto ambiental",
+        "relatorio de impacto ambiental",
+        "diagnostico ambiental",
+        "meio socioeconomico",
+        "meio biotico",
+        "meio fisico",
+    ]
+    for termo in termos_amostra:
+        if termo in texto_amostra_norm:
+            return True, f"amostra:{termo}"
+
+    tokens_estrutura = ["capitulo", "anexo", "volume", "diagnostico", "impactos", "alternativas"]
+    if total_documentos >= 600 and documento_idx <= max(80, total_documentos // 5):
+        if any(token in texto_base for token in tokens_estrutura):
+            return True, "estrutura:processo_extenso_capitulo"
+
+    if re.search(r"\bcap\.?\s*\d+\b", texto_base):
+        return True, "estrutura:capitulo_numerado"
+
+    return False, ""
+
+
+def filtrar_texto_classificacao(texto: str):
+
+    if not texto:
+        return ""
+
+    padrao_ruido_numerico = re.compile(r"^[\d\s\-_/.,:;()]+$")
+    prefixos_descarte = (
+        "figura",
+        "fig.",
+        "imagem",
+        "ilustracao",
+        "quadro",
+        "tabela",
+        "mapa",
+        "grafico",
+        "grafico",
+        "foto",
+        "fonte:",
+    )
+
+    linhas_filtradas = []
+    for linha in (texto or "").splitlines():
+        linha_limpa = " ".join((linha or "").split())
+        if not linha_limpa:
+            continue
+
+        linha_norm = normalizar_texto_regra(linha_limpa)
+        if linha_norm.startswith(prefixos_descarte):
+            continue
+
+        if padrao_ruido_numerico.fullmatch(linha_limpa):
+            continue
+
+        linhas_filtradas.append(linha_limpa)
+
+    return "\n".join(linhas_filtradas)
+
+
+def _int_env(nome: str, padrao: int):
+
+    valor = os.getenv(nome, "").strip()
+    if not valor:
+        return padrao
+
+    try:
+        return int(valor)
+    except ValueError:
+        return padrao
+
+
+def reanalisar_documento_em_blocos(classificador, arquivo, numero_sei_atual):
+
+    paginas_por_bloco = max(8, _int_env("AGIL_REANALISE_PAGINAS_BLOCO", 24))
+    max_blocos = max(0, _int_env("AGIL_REANALISE_MAX_BLOCOS", 80))
+
+    blocos_analisados = 0
+    for texto_bloco, paginas_bloco in iterar_blocos_texto_pdf(
+        arquivo,
+        paginas_por_bloco=paginas_por_bloco,
+        max_blocos=max_blocos,
+    ):
+        texto_classificacao = filtrar_texto_classificacao(texto_bloco)
+        if not texto_classificacao.strip():
+            continue
+
+        blocos_analisados += 1
+        if numero_sei_atual == "sem_numero_sei":
+            numero_sei_atual = extrair_numero_sei(texto_classificacao) or numero_sei_atual
+
+        if classificador.prever(texto_classificacao) == 1:
+            pagina_inicio = paginas_bloco[0] if paginas_bloco else 0
+            pagina_fim = paginas_bloco[-1] if paginas_bloco else 0
+            criterio = f"modelo_v4_reanalise_bloco:{pagina_inicio}-{pagina_fim}"
+            return 1, criterio, numero_sei_atual, blocos_analisados
+
+    return 0, "", numero_sei_atual, blocos_analisados
 
 
 def documento_descartavel_pre_download(nome_documento: str):
@@ -210,21 +350,46 @@ def processar_documento(scraper, classificador, processo, documento, documento_i
             if numero_sei_final == "sem_numero_sei":
                 numero_sei_final = extrair_numero_sei(texto) or numero_sei
 
-            criterio_classificacao = "modelo_v4_amostrado"
-            resultado = classificador.prever(texto)
-
-            if resultado != 1 and len(paginas_amostradas) >= 24:
+            texto_classificacao = filtrar_texto_classificacao(texto)
+            if not texto_classificacao.strip():
                 log(
-                    f"{prefixo_progresso}Negativo na amostra; reanalisando documento completo: "
+                    f"{prefixo_progresso}Texto util vazio apos filtro (figuras/tabelas): "
                     f"{nome_analise}"
                 )
-                texto_completo = extrair_texto_pdf(arquivo)
-                if texto_completo.strip():
-                    if numero_sei_final == "sem_numero_sei":
-                        numero_sei_final = extrair_numero_sei(texto_completo) or numero_sei
-                    resultado = classificador.prever(texto_completo)
-                    if resultado == 1:
-                        criterio_classificacao = "modelo_v4_texto_completo_fallback"
+                continue
+
+            criterio_classificacao = "modelo_v4_amostrado"
+            resultado = classificador.prever(texto_classificacao)
+
+            reanalisar_completo, motivo_reanalise = documento_prioriza_reanalise_completa(
+                download,
+                nome_analise,
+                texto_classificacao,
+                documento_idx=documento_idx,
+                total_documentos=total_documentos,
+            )
+            if resultado != 1 and len(paginas_amostradas) >= 24 and reanalisar_completo:
+                log(
+                    f"{prefixo_progresso}Negativo na amostra; reanalisando por blocos "
+                    f"(motivo='{motivo_reanalise}'): {nome_analise}"
+                )
+                resultado_bloco, criterio_bloco, numero_sei_final, blocos_analisados = reanalisar_documento_em_blocos(
+                    classificador=classificador,
+                    arquivo=arquivo,
+                    numero_sei_atual=numero_sei_final,
+                )
+                if resultado_bloco == 1:
+                    resultado = 1
+                    criterio_classificacao = criterio_bloco
+                    log(
+                        f"{prefixo_progresso}EIA recuperado na reanalise por blocos "
+                        f"({blocos_analisados} bloco(s) analisado(s)): {nome_analise}"
+                    )
+                else:
+                    log(
+                        f"{prefixo_progresso}Reanalise por blocos sem classificacao positiva "
+                        f"apos {blocos_analisados} bloco(s): {nome_analise}"
+                    )
 
             if resultado != 1:
                 log(f"{prefixo_progresso}Arquivo nao classificado como EIA: {nome_analise}")

@@ -90,3 +90,36 @@ def extrair_texto_pdf_amostrado(caminho_pdf, paginas_bloco=10, limite_paginas=60
         print("Erro ao extrair texto do PDF:", e)
 
     return "\n".join(texto), paginas
+
+
+def iterar_blocos_texto_pdf(caminho_pdf, paginas_por_bloco=24, max_blocos=0):
+
+    paginas_por_bloco = max(1, int(paginas_por_bloco or 1))
+    max_blocos = int(max_blocos or 0)
+
+    try:
+        with pdfplumber.open(caminho_pdf) as pdf:
+            buffer_texto = []
+            buffer_paginas = []
+            blocos_emitidos = 0
+
+            for indice, pagina in enumerate(pdf.pages, start=1):
+                conteudo = pagina.extract_text() or ""
+                if conteudo.strip():
+                    buffer_texto.append(conteudo)
+                buffer_paginas.append(indice)
+
+                if len(buffer_paginas) >= paginas_por_bloco:
+                    yield "\n".join(buffer_texto), list(buffer_paginas)
+                    blocos_emitidos += 1
+                    if max_blocos and blocos_emitidos >= max_blocos:
+                        return
+                    buffer_texto = []
+                    buffer_paginas = []
+
+            if buffer_paginas:
+                yield "\n".join(buffer_texto), list(buffer_paginas)
+
+    except Exception as e:
+        print("Erro ao extrair texto do PDF:", e)
+        return
