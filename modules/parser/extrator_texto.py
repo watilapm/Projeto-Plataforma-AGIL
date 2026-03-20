@@ -1,4 +1,51 @@
+import os
+from pathlib import Path
+
 import pdfplumber
+
+
+def _mensagem_excecao_segura(exc: Exception, limite: int = 220):
+    nome = exc.__class__.__name__
+    args = getattr(exc, "args", ())
+    if not args:
+        return nome
+
+    primeiro = args[0]
+    if isinstance(primeiro, bytes):
+        detalhe = f"bytes(len={len(primeiro)})"
+    elif isinstance(primeiro, (str, int, float, bool)):
+        detalhe = str(primeiro)
+    else:
+        return nome
+
+    detalhe = detalhe.replace("\n", " ").replace("\r", " ").strip()
+    if len(detalhe) > limite:
+        detalhe = detalhe[: limite - 3] + "..."
+
+    return f"{nome}: {detalhe}" if detalhe else nome
+
+
+def _limite_mb_pdf():
+    valor = os.getenv("AGIL_PDF_MAX_MB", "").strip()
+    if not valor:
+        return 0
+    try:
+        return max(0, int(valor))
+    except ValueError:
+        return 0
+
+
+def _pdf_excede_limite(caminho_pdf):
+    limite_mb = _limite_mb_pdf()
+    if limite_mb <= 0:
+        return False
+
+    try:
+        tamanho_bytes = Path(caminho_pdf).stat().st_size
+    except Exception:
+        return False
+
+    return tamanho_bytes > (limite_mb * 1024 * 1024)
 
 
 def extrair_texto_e_paginas_pdf(caminho_pdf):
@@ -7,12 +54,26 @@ def extrair_texto_e_paginas_pdf(caminho_pdf):
     paginas = []
 
     try:
+        if _pdf_excede_limite(caminho_pdf):
+            print(
+                f"Extracao ignorada: PDF acima do limite AGIL_PDF_MAX_MB ({Path(caminho_pdf).name})",
+                flush=True,
+            )
+            return "", []
 
         with pdfplumber.open(caminho_pdf) as pdf:
 
             for indice, pagina in enumerate(pdf.pages, start=1):
 
-                conteudo = pagina.extract_text() or ""
+                try:
+                    conteudo = pagina.extract_text() or ""
+                except Exception as exc:
+                    print(
+                        f"Falha na extracao de texto da pagina {indice} "
+                        f"({Path(caminho_pdf).name}): {_mensagem_excecao_segura(exc)}",
+                        flush=True,
+                    )
+                    conteudo = ""
                 if conteudo:
                     texto.append(conteudo)
 
@@ -23,9 +84,11 @@ def extrair_texto_e_paginas_pdf(caminho_pdf):
                     }
                 )
 
-    except Exception as e:
-
-        print("Erro ao extrair texto do PDF:", e)
+    except Exception as exc:
+        print(
+            f"Erro ao extrair texto do PDF ({Path(caminho_pdf).name}): {_mensagem_excecao_segura(exc)}",
+            flush=True,
+        )
 
     return "\n".join(texto), paginas
 
@@ -64,6 +127,12 @@ def extrair_texto_pdf_amostrado(caminho_pdf, paginas_bloco=10, limite_paginas=60
     paginas = []
 
     try:
+        if _pdf_excede_limite(caminho_pdf):
+            print(
+                f"Extracao ignorada: PDF acima do limite AGIL_PDF_MAX_MB ({Path(caminho_pdf).name})",
+                flush=True,
+            )
+            return "", []
 
         with pdfplumber.open(caminho_pdf) as pdf:
             total_paginas = len(pdf.pages)
@@ -74,7 +143,15 @@ def extrair_texto_pdf_amostrado(caminho_pdf, paginas_bloco=10, limite_paginas=60
                 indices = _indices_paginas_amostradas(total_paginas, paginas_bloco)
 
             for indice in indices:
-                conteudo = pdf.pages[indice].extract_text() or ""
+                try:
+                    conteudo = pdf.pages[indice].extract_text() or ""
+                except Exception as exc:
+                    print(
+                        f"Falha na extracao de texto da pagina {indice + 1} "
+                        f"({Path(caminho_pdf).name}): {_mensagem_excecao_segura(exc)}",
+                        flush=True,
+                    )
+                    conteudo = ""
                 if conteudo:
                     texto.append(conteudo)
 
@@ -85,9 +162,11 @@ def extrair_texto_pdf_amostrado(caminho_pdf, paginas_bloco=10, limite_paginas=60
                     }
                 )
 
-    except Exception as e:
-
-        print("Erro ao extrair texto do PDF:", e)
+    except Exception as exc:
+        print(
+            f"Erro ao extrair texto do PDF ({Path(caminho_pdf).name}): {_mensagem_excecao_segura(exc)}",
+            flush=True,
+        )
 
     return "\n".join(texto), paginas
 
@@ -98,13 +177,28 @@ def iterar_blocos_texto_pdf(caminho_pdf, paginas_por_bloco=24, max_blocos=0):
     max_blocos = int(max_blocos or 0)
 
     try:
+        if _pdf_excede_limite(caminho_pdf):
+            print(
+                f"Extracao ignorada: PDF acima do limite AGIL_PDF_MAX_MB ({Path(caminho_pdf).name})",
+                flush=True,
+            )
+            return
+
         with pdfplumber.open(caminho_pdf) as pdf:
             buffer_texto = []
             buffer_paginas = []
             blocos_emitidos = 0
 
             for indice, pagina in enumerate(pdf.pages, start=1):
-                conteudo = pagina.extract_text() or ""
+                try:
+                    conteudo = pagina.extract_text() or ""
+                except Exception as exc:
+                    print(
+                        f"Falha na extracao de texto da pagina {indice} "
+                        f"({Path(caminho_pdf).name}): {_mensagem_excecao_segura(exc)}",
+                        flush=True,
+                    )
+                    conteudo = ""
                 if conteudo.strip():
                     buffer_texto.append(conteudo)
                 buffer_paginas.append(indice)
@@ -120,6 +214,9 @@ def iterar_blocos_texto_pdf(caminho_pdf, paginas_por_bloco=24, max_blocos=0):
             if buffer_paginas:
                 yield "\n".join(buffer_texto), list(buffer_paginas)
 
-    except Exception as e:
-        print("Erro ao extrair texto do PDF:", e)
+    except Exception as exc:
+        print(
+            f"Erro ao extrair texto do PDF ({Path(caminho_pdf).name}): {_mensagem_excecao_segura(exc)}",
+            flush=True,
+        )
         return
