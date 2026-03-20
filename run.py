@@ -819,8 +819,19 @@ def main():
 
     estado_execucao_anterior = execution_state.obter_execucao_em_andamento()
     if estado_execucao_anterior:
+        run_id_anterior = estado_execucao_anterior.get("run_id", "")
+        pid_anterior = int(estado_execucao_anterior.get("pid") or 0)
+
+        if execution_state.processo_ativo(estado_execucao_anterior):
+            log(
+                "Execucao anterior ainda esta ativa "
+                f"(run_id={run_id_anterior}, pid={pid_anterior}). "
+                "Nao sera iniciada uma segunda instancia."
+            )
+            return
+
         log(
-            "Execucao anterior detectada como 'running'. "
+            "Execucao anterior detectada como 'running', mas sem processo ativo. "
             "Gerando relatorio parcial de interrupcao..."
         )
         relatorio_interrupcao = montar_relatorio_interrupcao(estado_execucao_anterior, checkpoint)

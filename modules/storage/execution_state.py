@@ -1,4 +1,5 @@
 import json
+import os
 from copy import deepcopy
 from datetime import datetime
 from pathlib import Path
@@ -25,6 +26,7 @@ class ExecutionState:
             "inicio_execucao": "",
             "fim_execucao": "",
             "status": "",
+            "pid": 0,
             "processos_planejados": 0,
             "resumo_processos": [],
             "heartbeat_em": "",
@@ -82,6 +84,7 @@ class ExecutionState:
                 "run_id": run_id,
                 "inicio_execucao": inicio_execucao.isoformat(timespec="seconds"),
                 "status": "running",
+                "pid": os.getpid(),
                 "processos_planejados": int(processos_planejados),
                 "resumo_processos": [],
                 "timeout_retries": [],
@@ -91,9 +94,23 @@ class ExecutionState:
         self.registrar_heartbeat("inicio_execucao")
 
     def registrar_heartbeat(self, contexto: str = ""):
+        self.estado["pid"] = os.getpid()
         self.estado["heartbeat_em"] = datetime.now().isoformat(timespec="seconds")
         self.estado["heartbeat_contexto"] = (contexto or "").strip()
         self._salvar()
+
+    def processo_ativo(self, estado: Optional[dict] = None) -> bool:
+        estado_ref = estado or self.estado
+        pid = int(estado_ref.get("pid") or 0)
+        if pid <= 0:
+            return False
+        try:
+            os.kill(pid, 0)
+        except ProcessLookupError:
+            return False
+        except PermissionError:
+            return True
+        return True
 
     def atualizar_resumo_processos(self, processos_resumidos: list, contexto: str = "resumo_atualizado"):
         self.estado["resumo_processos"] = list(processos_resumidos or [])
