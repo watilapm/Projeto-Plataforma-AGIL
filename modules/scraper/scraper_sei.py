@@ -33,6 +33,8 @@ class ScraperSEI:
         self.doc_timeout_visual = int(os.getenv("AGIL_DOC_TIMEOUT_VISUAL", "6"))
         self.doc_timeout_conteudo = int(os.getenv("AGIL_DOC_TIMEOUT_CONTEUDO", "4"))
         self.doc_tentativas = int(os.getenv("AGIL_DOC_TENTATIVAS", "5"))
+        self.download_timeout = int(os.getenv("AGIL_DOWNLOAD_TIMEOUT", "120"))
+        self.download_tentativas = int(os.getenv("AGIL_DOWNLOAD_TENTATIVAS", "3"))
         self.page_load_timeout = int(os.getenv("AGIL_PAGELOAD_TIMEOUT", "45"))
         self.login_timeout = int(os.getenv("AGIL_LOGIN_TIMEOUT", "30"))
         self.pos_login_sleep = float(os.getenv("AGIL_LOGIN_POS_SLEEP", "2"))
@@ -515,34 +517,56 @@ class ScraperSEI:
             },
         )
 
-        with urlopen(req, timeout=TIMEOUT_PADRAO) as resp:
-            conteudo = resp.read()
-            content_type = (resp.headers.get("Content-Type") or "").lower()
-            disposition = resp.headers.get("Content-Disposition") or ""
+        ultima_excecao = None
+        tentativas = max(1, int(self.download_tentativas or 1))
 
-        if not conteudo:
-            return None
+        for tentativa in range(1, tentativas + 1):
+            try:
+                with urlopen(req, timeout=self.download_timeout) as resp:
+                    content_type = (resp.headers.get("Content-Type") or "").lower()
+                    disposition = resp.headers.get("Content-Disposition") or ""
 
-        nome_fallback = self._sanitizar_nome_arquivo(nome_documento)
-        nome_arquivo = self._extrair_nome_resposta(disposition, nome_fallback)
-        nome_arquivo = self._sanitizar_nome_arquivo(nome_arquivo)
+                    nome_fallback = self._sanitizar_nome_arquivo(nome_documento)
+                    nome_arquivo = self._extrair_nome_resposta(disposition, nome_fallback)
+                    nome_arquivo = self._sanitizar_nome_arquivo(nome_arquivo)
 
-        if "." not in Path(nome_arquivo).name:
-            if "pdf" in content_type:
-                nome_arquivo += ".pdf"
-            elif "zip" in content_type or "compressed" in content_type:
-                nome_arquivo += ".zip"
-            else:
-                nome_arquivo += ".bin"
+                    if "." not in Path(nome_arquivo).name:
+                        if "pdf" in content_type:
+                            nome_arquivo += ".pdf"
+                        elif "zip" in content_type or "compressed" in content_type:
+                            nome_arquivo += ".zip"
+                        else:
+                            nome_arquivo += ".bin"
 
-        destino = Path(TEMP_DIR) / nome_arquivo
-        if destino.exists():
-            destino = destino.with_name(
-                f"{destino.stem}_{int(time.time())}{destino.suffix}"
-            )
+                    destino = Path(TEMP_DIR) / nome_arquivo
+                    if destino.exists():
+                        destino = destino.with_name(
+                            f"{destino.stem}_{int(time.time())}{destino.suffix}"
+                        )
 
-        destino.write_bytes(conteudo)
-        return destino
+                    total_bytes = 0
+                    with open(destino, "wb") as saida:
+                        while True:
+                            bloco = resp.read(1024 * 1024)
+                            if not bloco:
+                                break
+                            saida.write(bloco)
+                            total_bytes += len(bloco)
+
+                if total_bytes <= 0:
+                    return None
+
+                return destino
+            except (TimeoutError, OSError) as exc:
+                ultima_excecao = exc
+                if tentativa < tentativas:
+                    time.sleep(0.8)
+                    continue
+                raise
+
+        if ultima_excecao:
+            raise ultima_excecao
+        return None
 
     # --------------------------------------------------
 

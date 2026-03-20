@@ -501,8 +501,15 @@ def processar_documento(scraper, classificador, processo, documento, documento_i
         return eia_identificado
 
     except (zipfile.BadZipFile, OSError) as exc:
+        if isinstance(exc, TimeoutError):
+            prefixo_erro = "Timeout ao baixar/ler anexo"
+        elif isinstance(exc, zipfile.BadZipFile):
+            prefixo_erro = "Falha ao abrir ZIP do documento"
+        else:
+            prefixo_erro = "Falha ao processar anexo compactado"
+
         log(
-            f"Falha ao abrir ZIP do documento "
+            f"{prefixo_erro} "
             f"[doc {documento_idx + 1}/{total_documentos}] {nome_documento}: "
             f"{exc.__class__.__name__}: {exc}"
         )
