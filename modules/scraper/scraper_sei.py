@@ -33,6 +33,9 @@ class ScraperSEI:
         self.doc_timeout_visual = int(os.getenv("AGIL_DOC_TIMEOUT_VISUAL", "6"))
         self.doc_timeout_conteudo = int(os.getenv("AGIL_DOC_TIMEOUT_CONTEUDO", "4"))
         self.doc_tentativas = int(os.getenv("AGIL_DOC_TENTATIVAS", "5"))
+        self.page_load_timeout = int(os.getenv("AGIL_PAGELOAD_TIMEOUT", "45"))
+        self.login_timeout = int(os.getenv("AGIL_LOGIN_TIMEOUT", "30"))
+        self.pos_login_sleep = float(os.getenv("AGIL_LOGIN_POS_SLEEP", "2"))
         self.driver = self._iniciar_driver()
 
     # --------------------------------------------------
@@ -58,7 +61,7 @@ class ScraperSEI:
 
         driver = webdriver.Chrome(options=chrome_options)
 
-        driver.set_page_load_timeout(TIMEOUT_PADRAO)
+        driver.set_page_load_timeout(self.page_load_timeout)
 
         return driver
 
@@ -68,9 +71,16 @@ class ScraperSEI:
 
         print("Abrindo SEI...")
 
-        self.driver.get(SEI_URL)
+        try:
+            self.driver.get(SEI_URL)
+        except TimeoutException:
+            print("Timeout no carregamento inicial do SEI; seguindo com fallback (window.stop).")
+            try:
+                self.driver.execute_script("window.stop();")
+            except Exception:
+                pass
 
-        wait = WebDriverWait(self.driver, TIMEOUT_PADRAO)
+        wait = WebDriverWait(self.driver, self.login_timeout)
 
         campo_usuario = wait.until(
             EC.visibility_of_element_located((By.ID, "txtUsuario"))
@@ -94,7 +104,7 @@ class ScraperSEI:
 
         self.driver.execute_script("arguments[0].click();", botao_login)
 
-        time.sleep(3)
+        time.sleep(self.pos_login_sleep)
 
         self._fechar_popup_se_existir()
 

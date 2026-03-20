@@ -6,7 +6,7 @@ import signal
 import zipfile
 from getpass import getpass
 from datetime import datetime
-from time import monotonic
+from time import monotonic, sleep
 from uuid import uuid4
 
 from modules.classifier.classificador import ClassificadorEIA
@@ -222,6 +222,36 @@ def _reiniciar_scraper_com_login(scraper, headless, usuario, senha):
     novo_scraper = ScraperSEI(headless=headless)
     novo_scraper.login(usuario, senha)
     return novo_scraper
+
+
+def _login_resiliente(scraper, headless, usuario, senha):
+    tentativas = max(1, _int_env("AGIL_LOGIN_TENTATIVAS", 3))
+    espera_retry = max(0, _int_env("AGIL_LOGIN_RETRY_SEGUNDOS", 2))
+
+    ultimo_erro = None
+    atual = scraper
+
+    for tentativa in range(1, tentativas + 1):
+        try:
+            atual.login(usuario, senha)
+            return atual
+        except Exception as exc:
+            ultimo_erro = exc
+            log(
+                f"Falha no login SEI (tentativa {tentativa}/{tentativas}): "
+                f"{exc.__class__.__name__}: {exc}"
+            )
+            try:
+                atual.fechar()
+            except Exception:
+                pass
+
+            if tentativa < tentativas:
+                if espera_retry:
+                    sleep(espera_retry)
+                atual = ScraperSEI(headless=headless)
+
+    raise ultimo_erro
 
 
 def reanalisar_documento_em_blocos(classificador, arquivo, numero_sei_atual):
@@ -875,7 +905,7 @@ def main():
 
         execution_state.registrar_heartbeat("antes_login")
         log(f"Iniciando login no SEI (headless={headless})...")
-        scraper.login(usuario, senha)
+        scraper = _login_resiliente(scraper, headless, usuario, senha)
 
         total = len(processos_pendentes)
         reinicio_preventivo_cada = max(0, _int_env("AGIL_RESTART_BROWSER_CADA_PROCESSOS", 3))
@@ -929,7 +959,7 @@ def main():
                     if erro_tab_crashed or erro_webdriver_conexao:
                         scraper = _reiniciar_scraper_com_login(scraper, headless, usuario, senha)
                     else:
-                        scraper.login(usuario, senha)
+                        scraper = _login_resiliente(scraper, headless, usuario, senha)
 
                     resumo = processar_processo(
                         scraper=scraper,
