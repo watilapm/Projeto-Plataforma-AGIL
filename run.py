@@ -203,6 +203,16 @@ def _erro_tab_crashed(resumo: dict):
     return resumo.get("status") == "erro" and "tab crashed" in erro
 
 
+def _erro_webdriver_conexao_recusada(resumo: dict):
+    erro = (resumo.get("erro_processo") or "").lower()
+    return (
+        resumo.get("status") == "erro"
+        and "maxretryerror" in erro
+        and "httpconnectionpool(host='localhost'" in erro
+        and "connection refused" in erro
+    )
+
+
 def _reiniciar_scraper_com_login(scraper, headless, usuario, senha):
     try:
         scraper.fechar()
@@ -897,8 +907,14 @@ def main():
 
             erro_timeout = _erro_timeout(resumo)
             erro_tab_crashed = _erro_tab_crashed(resumo)
-            if erro_timeout or erro_tab_crashed:
-                motivo_retry = "timeout" if erro_timeout else "tab_crashed"
+            erro_webdriver_conexao = _erro_webdriver_conexao_recusada(resumo)
+            if erro_timeout or erro_tab_crashed or erro_webdriver_conexao:
+                if erro_timeout:
+                    motivo_retry = "timeout"
+                elif erro_tab_crashed:
+                    motivo_retry = "tab_crashed"
+                else:
+                    motivo_retry = "webdriver_connection_refused"
                 execution_state.registrar_evento_retry_timeout(
                     numero_processo=numero,
                     status="retry_iniciado",
@@ -910,7 +926,7 @@ def main():
                 )
                 try:
                     execution_state.registrar_heartbeat(f"antes_retry:{numero}")
-                    if erro_tab_crashed:
+                    if erro_tab_crashed or erro_webdriver_conexao:
                         scraper = _reiniciar_scraper_com_login(scraper, headless, usuario, senha)
                     else:
                         scraper.login(usuario, senha)
