@@ -360,6 +360,16 @@ def processar_documento(scraper, classificador, processo, documento, documento_i
         if total_documentos:
             prefixo_progresso = f"[doc {documento_idx + 1}/{total_documentos}] "
 
+        timeout_documento = max(0, _int_env("AGIL_DOC_TIMEOUT_PROCESSAMENTO", 420))
+        inicio_doc = monotonic()
+
+        def _validar_timeout_documento(etapa: str):
+            if timeout_documento and (monotonic() - inicio_doc) > timeout_documento:
+                raise TimeoutError(
+                    f"tempo limite de {timeout_documento}s excedido na etapa '{etapa}'"
+                )
+
+        _validar_timeout_documento("download")
         log(f"{prefixo_progresso}Baixando documento: {nome_documento}")
         download = scraper.baixar_documento(documento)
         if not download:
@@ -375,6 +385,7 @@ def processar_documento(scraper, classificador, processo, documento, documento_i
         eia_identificado = False
 
         for candidato in candidatos:
+            _validar_timeout_documento("inicio_candidato")
             arquivo = candidato["arquivo"]
             nome_analise = candidato["nome_origem"]
             criterio_classificacao = ""
@@ -412,6 +423,7 @@ def processar_documento(scraper, classificador, processo, documento, documento_i
                 eia_identificado = True
                 continue
 
+            _validar_timeout_documento("extracao_amostra")
             log(f"{prefixo_progresso}Analisando arquivo: {arquivo.name}")
             texto, paginas_amostradas = extrair_texto_pdf_amostrado(
                 arquivo,
@@ -445,6 +457,7 @@ def processar_documento(scraper, classificador, processo, documento, documento_i
                 total_documentos=total_documentos,
             )
             if resultado != 1 and len(paginas_amostradas) >= 24 and reanalisar_completo:
+                _validar_timeout_documento("reanalisar_blocos")
                 log(
                     f"{prefixo_progresso}Negativo na amostra; reanalisando por blocos "
                     f"(motivo='{motivo_reanalise}'): {nome_analise}"
@@ -524,7 +537,7 @@ def processar_documento(scraper, classificador, processo, documento, documento_i
         return False
 
 
-def processar_processo(scraper, classificador, processo, indice, total, checkpoint=None):
+def processar_processo(scraper, classificador, processo, indice, total, checkpoint=None, execution_state=None):
 
     numero = processo["numero_processo"]
     numero_original = processo["numero_original"]
@@ -569,6 +582,12 @@ def processar_processo(scraper, classificador, processo, indice, total, checkpoi
         for documento_idx, documento in enumerate(documentos):
             if documento_idx < inicio_documento:
                 continue
+
+            if execution_state:
+                contexto_doc = (
+                    f"processo:{numero_original}:doc:{documento_idx + 1}/{len(documentos)}"
+                )
+                execution_state.registrar_heartbeat(contexto_doc)
 
             documentos_processados += 1
             if processar_documento(
@@ -951,6 +970,7 @@ def main():
                 indice=indice,
                 total=total,
                 checkpoint=checkpoint,
+                execution_state=execution_state,
             )
 
             erro_timeout = _erro_timeout(resumo)
@@ -986,6 +1006,7 @@ def main():
                         indice=indice,
                         total=total,
                         checkpoint=checkpoint,
+                        execution_state=execution_state,
                     )
                     status_retry = (
                         "retry_sucesso" if resumo.get("status") == "concluido" else "retry_sem_sucesso"
